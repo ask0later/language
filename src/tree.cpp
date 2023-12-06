@@ -45,7 +45,6 @@ Node* CreateOperator(Operators value, Node* left, Node* right)
     return node;
 }
 
-
 Node* CreateNode(Type type, void* value, Node* left, Node* right)
 {
     Node* node = (Node*) calloc(1, sizeof(Node));
@@ -79,6 +78,17 @@ Node* CreateNode(Type type, void* value, Node* left, Node* right)
     return node;
 }
 
+
+void DeleteToken(Node* node)
+{
+    if (node->type == VAR)
+        free(node->data.variable);
+
+    free(node);
+
+    return;
+}
+
 void DeleteNode(Node* node)
 {
     if (!node) return;
@@ -96,17 +106,107 @@ void DeleteNode(Node* node)
     return;
 }
 
-void Tokenization(Token** tokens, size_t token_i, Text* buf)
-{   
-    if (buf->position == buf->size_buffer)
-        return;
-    // while (isspace(buf->str[buf->position]))
-    //     buf->position++;
+void SkipSpaces(Text* buf)
+{
+    while (isspace(buf->str[buf->position]))
+        buf->position++;
+}
+
+TreeError ConstructorTokens(Tokens* tkns, Text* buf)
+{
+    tkns->size = buf->size_buffer;
+    tkns->position = 0;
+    tkns->tokens = (Node**) calloc(tkns->size, sizeof(Node*));
+    if (!tkns->tokens) return ALLOC_ERROR;
+    
+    return NO_ERROR;
+}
+
+TreeError DestructorTokens(Tokens* tkns)
+{
+    for (size_t i = 0; i < tkns->size; i++)
+        DeleteToken(tkns->tokens[i]);
+
+    tkns->size = (size_t) INT_MAX;
+    tkns->position = (size_t) INT_MAX;
+    free(tkns->tokens);
+    
+    return NO_ERROR;
+}
+
+
+TreeError CreateTokens(Tokens* tkns, Text* buf)
+{
+    while (buf->str[buf->position] != '\0')
+    {
+        SkipSpaces(buf);
         
-    printf("!%c!", buf->str[buf->position]);
+        if (buf->position == buf->size_buffer)
+            return NO_ERROR;
 
+        ParseNumber(tkns, buf);
+        
+        ParseMathOperators(tkns, buf);
+
+        ParseVariable(tkns, buf);
+    }
+
+    tkns->tokens[tkns->position] = CreateOperator(END, NULL, NULL);
+
+    tkns->position++;
+
+    tkns->size = tkns->position;
+
+    Node** ptr = (Node**) realloc(tkns->tokens, tkns->size * sizeof(Node*));
+    if (ptr == NULL) {return ALLOC_ERROR;}
+
+    tkns->tokens = ptr;
+    tkns->position = 0;
+
+    return NO_ERROR;
+}   
+
+TreeError ParseVariable(Tokens* tkns, Text* buf)
+{
+    if (isalpha(buf->str[buf->position]))
+    {
+        char var[MAX_SIZE_NAME] = {};
+        size_t i_var = 0;
+        var[i_var] = buf->str[buf->position];
+        i_var++;
+        buf->position++;
+        while (isalnum(buf->str[buf->position]) || buf->str[buf->position] == '_')
+        {
+            var[i_var] = buf->str[buf->position];
+            buf->position++;
+            i_var++;
+        }
+        tkns->tokens[tkns->position] = CreateVariable(var, NULL, NULL);
+        tkns->position++;
+    }
+
+    return NO_ERROR;
+}
+
+TreeError ParseMathOperators(Tokens* tkns, Text* buf)
+{
+    for (size_t i = 0; i < NUM_MATH_COMMANDS; i++)
+    {
+        if (strncmp(&(buf->str[buf->position]), math_cmds[i].name, math_cmds[i].size_name) == 0)
+        {
+            buf->position += math_cmds[i].size_name;
+     
+            tkns->tokens[tkns->position] = CreateOperator(math_cmds[i].value, NULL, NULL);
+            tkns->position++;
+        }
+    }
+
+    return NO_ERROR;
+}
+
+TreeError ParseNumber(Tokens* tkns, Text* buf)
+{
     int val = 0;
-
     while (isdigit(buf->str[buf->position]))
     {
         val = 10 * val + buf->str[buf->position] - '0';
@@ -114,195 +214,136 @@ void Tokenization(Token** tokens, size_t token_i, Text* buf)
     }
     if (val != 0)
     {
-        (*tokens)[token_i].type = NUM;
-        printf("AXAXAX");
-        (*tokens)[token_i].data.value = val;
-        token_i++;
-        return Tokenization(tokens, token_i, buf);
+        tkns->tokens[tkns->position] = CreateNumber(val, NULL, NULL);
+        tkns->position++;    
     }
-
-    char op[MAX_SIZE_NAME] = {};
     
-    if (buf->position < buf->size_buffer - 2)
-    {
-        op[0] = buf->str[buf->position];
-        op[1] = buf->str[buf->position + 1];
-        op[2] = buf->str[buf->position + 2];
-    }
-    else if (buf->position < buf->size_buffer - 1)
-    {
-        op[0] = buf->str[buf->position];
-        op[1] = buf->str[buf->position + 1];
-    }
-    else 
-    {
-        op[0] = buf->str[buf->position];
-    }
+    return NO_ERROR;
+}
 
-    for (size_t i = 0; i < NUM_COMMANDS; i++)
-    {
-        printf("<%s> and <%s> \n", op, cmds[i].name);
-        if (strncmp(cmds[i].name, op, cmds[i].size_name) == 0)
-        {
-            printf("MMM");
-            buf->position += cmds[i].size_name;
-            (*tokens)[token_i].type = OPERATOR;
-            (*tokens)[token_i].data.value_op = (Operators) cmds[i].value;
-            token_i++;
-            return Tokenization(tokens, token_i, buf);
-        }
-    }
-
-    
-
-    // if (isalpha(buf->str[buf->position]))
-    // {
-    //     char var[MAX_SIZE_NAME] = {};
-    //     size_t i_var = 0;
-    //     var[i] = buf->str[buf->position];
-    //     i_var++;
-    //     buf->position++;
-    //     while (isalnum(buf->str[buf->position]) || buf->str[buf->position] == '_')
-    //     {
-    //         var[i] = buf->str[buf->position];
-    //         buf->position++;
-    //         i_var++;
-    //     }
-    //     tokens[i] =
-    //     i++;
-    // }
-    //return Tokenization(tokens, token_i, buf);
-}   
-
-Node* GetG(Text* buf, Token* tokens, size_t token_i)
+Node* GetG(Tokens* tkns)
 {
-    Node* current = GetE(buf, tokens, token_i);
-    //syntax_assert(buf->str[buf->position] == '\0', buf);
+    Node* current = GetExpression(tkns);
     return current;
 }
 
-Node* GetE(Text* buf, Token* tokens, size_t token_i)
+Node* GetExpression(Tokens* tkns)
 {
-    Node* val = GetT(buf, tokens, token_i);
+    
+    Node* value_1 = GetTerm(tkns);
+    Node* value_3 = NULL;
 
-    while((buf->str[buf->position] == '+') || (buf->str[buf->position] == '-'))
+    if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        char op = buf->str[buf->position];
-        buf->position++;
-        Node* val2 = GetT(buf, tokens);
-        switch (op)
+        while ((tkns->tokens[tkns->position]->data.value_op == OP_ADD) || (tkns->tokens[tkns->position]->data.value_op == OP_SUB))
         {
-            case '+': val = CreateOperator(OP_ADD, val, val2); break;
-            case '-': val = CreateOperator(OP_SUB, val, val2); break;
-            default: printf("extra"); syntax_assert(false, buf);
-                break;
+            value_3 = tkns->tokens[tkns->position];
+            tkns->position++;
+            
+            Node* value_2 = GetTerm(tkns);
+
+            value_3->left = value_1;
+            value_3->right = value_2;
+
+            value_1 = value_3;
         }
     }
-    //syntax_assert(buf->str[buf->position] != '\0', buf);
-    return val;
+    
+    return value_3;
 }
 
 
-Node* GetT(Text* buf, Token* tokens)
+Node* GetTerm(Tokens* tkns)
 {
-    Node* val = GetP(buf, tokens);
+    Node* value_1 = GetUnary(tkns);
     
-    char op[MAX_SIZE_NAME]= {};
-
-    if (buf->position < buf->size_buffer - 2)
-    {
-        op[0] = buf->str[buf->position];
-        op[1] = buf->str[buf->position + 1];
-        op[2] = buf->str[buf->position + 2];
-    }
-
-    bool x = true;
-    do 
+    if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
         for (size_t i = 0; i < NUM_COMMANDS_T; i++)
         {
-            if (strncmp(cmdsT[i].name, op, cmdsT[i].size_name) == 0)
+            if (cmdsT[i].value == tkns->tokens[tkns->position]->data.value_op)
             {
-                fprintf(stderr, "<%s> and <%s> size = %lu\n", op, cmds[i].name, cmds[i].size_name);
-                buf->position += cmds[i].size_name;
-                Node* val2 = GetP(buf, tokens);
-                val = CreateOperator((Operators) cmdsT[i].value, val, val2);
-                x = false;
+                Node* value_3 = tkns->tokens[tkns->position];
+                tkns->position++;
+                
+                Node* value_2 = GetUnary(tkns);
+                value_3->left = value_1;
+                value_3->right = value_2;
+
+                value_1 = value_3;
             }
         }
-        if (x == false)
-            x = true;
-        if (x == true)
-            x = false;
-    } while (x == true);
-
-    // while((buf->str[buf->position] == '*') || (buf->str[buf->position] == '/'))
-    // {
-    //     char op = buf->str[buf->position];
-    //     buf->position++;
-    //     Node* val2 = GetP(buf);
-    //     switch (op)
-    //     {
-    //         case '*': val = CreateOperator(OP_MUL, val, val2); break;
-    //         case '/': val = CreateOperator(OP_DIV, val, val2); break;
-    //         default: printf("extra"); syntax_assert(false, buf);
-    //             break;
-    //     }
-    // }
+    }
     
-    //syntax_assert(buf->str[buf->position] != '\0', buf);
-    return val;
+    return value_1;
 }
 
-Node* GetP(Text* buf, Token* tokens)
+Node* GetUnary(Tokens* tkns)
 {
-    if (buf->str[buf->position] == '(')
+    Node* value_1 = NULL;
+    if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        Node* val = 0;
-        buf->position++;
-        val = GetE(buf, tokens);
-        syntax_assert(buf->str[buf->position] == ')', buf);
-        buf->position++;
-
-        return val;
-    }
-
-    return GetC(buf, tokens);
-}
-
-Node* GetC(Text* buf, Token* tokens)
-{
-    if (isalpha(buf->str[buf->position]))
-    {
-        char val[MAX_SIZE_NAME] = {};
-        size_t i = 0;
-        val[i] = buf->str[buf->position];
-        i++;
-        buf->position++;
-        while (isalnum(buf->str[buf->position]) || buf->str[buf->position] == '_')
+        for (size_t i = 0; i < NUM_COMMANDS_U; i++)
         {
-            val[i] = buf->str[buf->position];
-            buf->position++;
-            i++;
+            if (cmdsU[i].value == tkns->tokens[tkns->position]->data.value_op)
+            {
+                value_1 = tkns->tokens[tkns->position];
+                tkns->position++;
+                Node* value_2 = GetPrimaryExpression(tkns);
+
+                value_1->right = value_2;
+            }
         }
-        return CreateVariable(val, NULL, NULL);
     }
-    return GetN(buf, tokens);   
+    
+    if (value_1 == NULL)
+        value_1 = GetPrimaryExpression(tkns);
+
+    return value_1;
 }
 
-Node* GetN(Text* buf, Token* tokens)
+Node* GetPrimaryExpression(Tokens* tkns)
 {
-    int val = 0;
-    size_t old_position = buf->position;
-    while(isdigit(buf->str[buf->position]))
+    if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        val = val * 10 + buf->str[buf->position] - '0';
-        buf->position++;
+        if (tkns->tokens[tkns->position]->data.value_op == L_BRACKET)
+        {
+            tkns->position++;
+            Node* val = GetExpression(tkns);
+            if (tkns->tokens[tkns->position]->data.value_op == R_BRACKET)
+                tkns->position++;
+            else
+                return NULL;
+
+            return val;
+        }
     }
 
-    syntax_assert(buf->position > old_position, buf);
+    return GetC(tkns);
+}
 
-    return CreateNumber(val, NULL, NULL);
+Node* GetC(Tokens* tkns)
+{
+    if (tkns->tokens[tkns->position]->type == VAR)
+    {
+        Node* var = tkns->tokens[tkns->position];
+        tkns->position++;
+        return var;
+    }
+    return GetN(tkns);
+}
+
+Node* GetN(Tokens* tkns)
+{
+
+    if (tkns->tokens[tkns->position]->type == NUM)
+    {
+        Node* num = tkns->tokens[tkns->position];
+        tkns->position++;
+        return num;
+    }
+
+    return NULL;
 }
 
 void syntax_assert(bool x, Text* buf)
@@ -404,6 +445,9 @@ void PrintOperator(Operators value_Operators, FILE* To)
         case FUN_LN:
             fprintf(To, " ln ");
             break;
+        case L_BRACKET:
+        case R_BRACKET:
+        case END:
         default:
             printf("extra");
             break;

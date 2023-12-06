@@ -13,23 +13,18 @@ int main()
 
     printf("%s\n", buf.str);
 
-    Token tokens[MAX_NUM_TOKENS] = {};
-    Token* tkn = tokens;
-    printf("%c\n", buf.str[buf.position]);
-    printf("%c\n", buf.str[buf.position + 1]);
-    Tokenization(&tkn, 0, &buf);
-
-    printf("%d", tokens[0].type);
-    printf("%d", tokens[1].type);
-    printf("%d", tokens[2].type);
-    printf("%d", tokens[3].type);
-    test_tree.root = GetG(&buf, tokens, 0);
+    Tokens tkns = {};
+    ConstructorTokens(&tkns, &buf);
     
-    //PrintNode(test_tree.root, stdout, IN_ORDER);
+    CreateTokens(&tkns, &buf);
+
+    test_tree.root = GetG(&tkns);
+    
     GraphicDump(&test_tree, NULL);
 
-    DeleteNode(test_tree.root);
+    //DeleteNode(test_tree.root);
+    
+    DestructorTokens(&tkns);
 
     DeleteBuffer(&buf);
-    //Node* current = GetG(Parse* parse);
 }

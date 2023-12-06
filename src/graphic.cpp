@@ -66,6 +66,8 @@ TreeError GraphicDumpNode(Node* node)
             case FUN_LN:
                 sprintf(str, " ln ");
                 break;
+            case L_BRACKET:
+            case R_BRACKET:
             default:
                 printf("extra");
                 break;
