@@ -66,6 +66,21 @@ TreeError GraphicDumpNode(Node* node)
             case FUN_LN:
                 sprintf(str, " ln ");
                 break;
+            case OP_ABOVE:
+                sprintf(str, " > ");
+                break;
+            case OP_BELOW:
+                sprintf(str, " < ");
+                break;
+            case OP_ASSIGN:
+                sprintf(str, " = ");
+                break;
+            case OP_CONDITION:
+                sprintf(str, " if ");
+                break;
+            case OP_LOOP:
+                sprintf(str, " while ");
+                break;
             case L_BRACKET:
             case R_BRACKET:
             default:
@@ -76,7 +91,8 @@ TreeError GraphicDumpNode(Node* node)
     else if (node->type == VAR)
     {
         dtNodeStyle().fillcolor("#21C912");//HEX_GREEN
-        sprintf(str, "%s", node->data.variable);
+        sprintf(str, "%d", node->data.var_value);
+        //sprintf(str, "%s", node->data.variable);
     }
     
     

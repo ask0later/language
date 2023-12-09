@@ -1,1 +1,1 @@
-7 + 10 / (ln(x + 1) + 3 * (-x))
+|-..-| encoding matches -10 reseption if (|-..-| overflow 0) (|-..-| 1)
