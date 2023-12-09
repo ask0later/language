@@ -1,1 +1,4 @@
-reseption if (|-.-- | overflow |----- |) {|-.-- | encoding matches |..--- ----- |;}
+|-.-- ..- | encoding matches |..--- ---.. ....- ----- | ;
+|-.-- | encoding matches |..--- ....- ----- | ;
+|..- | encoding matches |..--- ----- | ;
+reseption if (|-..-| overflow |..--- ----- |) { |-.-- | encoding matches |..--- ....- ----- | ; |..- | encoding matches |..--- ----- | ;};

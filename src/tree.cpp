@@ -368,23 +368,25 @@ Node* GetIf(Tokens* tkns)
         (tkns->position)++;
         
         value_1->right = GetOperators(tkns);
-        PrintNode(value_1->right, stdout, IN_ORDER);
-        printf("\n");
 
         if (tkns->tokens[tkns->position]->data.value_op == R_CURLY_BRACKET)
         {
             (tkns->position)++;
         }
-        printf("==%d\n", tkns->tokens[tkns->position]->data.value_op);
+
+        if (tkns->tokens[tkns->position]->data.value_op == SEMICOLON)
+        {
+            value_2 = tkns->tokens[tkns->position];
+            value_2->left = value_1;
+            (tkns->position)++;
+        }
     }
     else 
     {
-        printf("{{{{{}}}}}");
         return NULL;
     }
-    PrintNode(value_1, stdout, IN_ORDER);
 
-    return value_1;
+    return value_2;
 }
 
 Node* GetLoop(Tokens* tkns)
