@@ -1,3 +1,10 @@
 digraph DotGraph
 {
+    Node32 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" if "];
+    Node320 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" > "];
+    Node224 [shape="box", color="black", fontcolor="black", fillcolor="#21C912", style="filled", weight="1", label="var = <323 0 0>\n"];
+    Node320 -> Node224 [color="black", style="solid", weight="1", label=""];
+    Node416 [shape="box", color="black", fontcolor="black", fillcolor="#7BF2DA", style="filled", weight="1", label="0"];
+    Node320 -> Node416 [color="black", style="solid", weight="1", label=""];
+    Node32 -> Node320 [color="black", style="solid", weight="1", label=""];
 }

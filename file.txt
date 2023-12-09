@@ -1,1 +1,1 @@
-|-..-| encoding matches -10 reseption if (|-..-| overflow 0) (|-..-| 1)
+reseption if (|-.-- | overflow |----- |) {|-.-- | encoding matches |..--- ----- |;}

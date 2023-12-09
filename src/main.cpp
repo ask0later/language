@@ -15,19 +15,10 @@ int main()
 
     Tokens tkns = {};
     ConstructorTokens(&tkns, &buf);
-    
-    // printf("<%s>\n", &(buf.str[12]));
-    // printf("<%s>\n", &(buf.str[13]));
-    // printf("<%s>\n", &(buf.str[14]));
-    // printf("<%s>\n", &(buf.str[15]));
-    // printf("<%s>\n", &(buf.str[16]));
-    // printf("<%s>\n", &(buf.str[17]));
-    // printf("<%s>\n", &(buf.str[18]));
-    // printf("___%lu\n%s\n", buf.size_buffer, buf.str);
 
     CreateTokens(&tkns, &buf);
     DumpTokens(&tkns);
-    //test_tree.root = GetG(&tkns);
+    test_tree.root = GetGrammar(&tkns);
     
     GraphicDump(&test_tree, NULL);
 

@@ -1,6 +1,6 @@
 #include "tree.h"
 
-Node* CreateVariable(char* value, Node* left, Node* right)
+Node* CreateVariable(int* var, Node* left, Node* right)
 {
     Node* node = (Node*) calloc(1, sizeof(Node));
     if (!node) {return 0;}
@@ -10,21 +10,7 @@ Node* CreateVariable(char* value, Node* left, Node* right)
 
     node->type = VAR;
 
-    node->data.variable = strdup(value);
-
-    return node;
-}
-Node* CreateVariableMorse(MorseAlhabet value, Node* left, Node* right)
-{
-    Node* node = (Node*) calloc(1, sizeof(Node));
-    if (!node) {return 0;}
-
-    node->left   = left;
-    node->right  = right;
-
-    node->type = VAR;
-
-    node->data.var_value = (int) value;
+    memcpy(node->data.var, var, SIZE_MORSE_SYMBOL);
 
     return node;
 }
@@ -83,7 +69,7 @@ Node* CreateNode(Type type, void* value, Node* left, Node* right)
         node->data.value_op  = *((Operators*) value);
         break;
     case VAR:
-        node->data.variable = strdup((const char*) value);
+        //node->data.variable = strdup((const char*) value);
         break;
 
     default:
@@ -107,8 +93,8 @@ void DeleteNode(Node* node)
 {
     if (!node) return;
 
-    if (node->type == VAR)
-        free(node->data.variable);
+    // if (node->type == VAR)
+    //     free(node->data.variable);
     
     if (node->left)
         DeleteNode(node->left);
@@ -164,9 +150,7 @@ TreeError CreateTokens(Tokens* tkns, Text* buf)
 
         ParseLanguageOperators(tkns, buf);
 
-        ParseNumber(tkns, buf);
-
-        ParseVariable(tkns, buf); 
+        ParseNumOrVar(tkns, buf);
     }
 
     tkns->tokens[tkns->position] = CreateOperator(END, NULL, NULL);
@@ -186,14 +170,10 @@ TreeError CreateTokens(Tokens* tkns, Text* buf)
 
 bool FindCommand(Text* buf, const Command* cmds, const size_t num_commands, Operators* id)//, size_t* offset)
 {
-    bool found_or_not_found = false;
-
     for (size_t i = 0; i < num_commands; i++)
     {
         if (strncmp(&(buf->str[buf->position]), cmds[i].name, cmds[i].size_name) == 0)
         {
-            found_or_not_found = true;
-
             buf->position += cmds[i].size_name;
             (*id) = cmds[i].id;
 
@@ -202,6 +182,98 @@ bool FindCommand(Text* buf, const Command* cmds, const size_t num_commands, Oper
     }
 
     return false;
+}
+
+bool FindSymbol(char* source, const MorseAlpha* morse_symbol, const size_t num_symbols, MorseAlhabet* id)
+{
+    for (size_t i = 0; i < num_symbols; i++)
+    {
+        if (strcmp(source, morse_symbol[i].encoding) == 0)
+        {
+            (*id) = morse_symbol[i].value;
+
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+TreeError ParseNumOrVar(Tokens* tkns, Text* buf)
+{
+    if (buf->str[buf->position] == '|')
+    {
+        (buf->position)++;
+
+        ParseMorseCode(tkns, buf);
+    }
+
+    return NO_ERROR;
+}
+
+TreeError ReadingMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf)
+{
+    char var[SIZE_MORSE_SYMBOL] = {};
+
+    size_t i_var  = 0;
+   
+    MorseAlhabet id = MORSE_0;
+
+    while (buf->str[buf->position] != '|')
+    {
+        var[i_var] = buf->str[buf->position];
+        buf->position++;
+        i_var++;
+
+        if (buf->str[buf->position] == ' ')
+        {
+            FindSymbol(var, morse_alnum, NUM_ALNUM, &id);
+    
+            id_value[*i_vars] = id;
+
+            (*i_vars)++;
+            memset(var, 0, SIZE_MORSE_SYMBOL);
+            i_var = 0;
+            buf->position++;
+        }
+    }
+
+    if (i_var != 0)
+    {
+        FindSymbol(var, morse_alnum, NUM_ALNUM, &id);
+        id_value[*i_vars] = id;
+        (*i_vars)++;
+    }
+
+    buf->position++;
+
+    return NO_ERROR;
+}
+
+TreeError ParseMorseCode(Tokens* tkns, Text* buf)
+{
+    MorseAlhabet id_value[SIZE_SYMBOLS] = {};
+    size_t i_vars = 0;
+
+    ReadingMorseCode(id_value, &i_vars, buf);
+    
+    double value = 0;
+
+    if ((id_value[0] - MORSE_0) > (MORSE_9 - MORSE_0))
+    {
+        tkns->tokens[tkns->position] = CreateVariable((int*) id_value, NULL, NULL);
+        tkns->position++;
+        
+        return NO_ERROR;
+    }
+
+    for (size_t i = 0; i < i_vars; i++)
+        value = 10 * value + (double)(id_value[i] - MORSE_0);
+
+    tkns->tokens[tkns->position] = CreateNumber(value, NULL, NULL);
+    tkns->position++;
+
+    return NO_ERROR;
 }
 
 TreeError ParseLanguageOperators(Tokens* tkns, Text* buf)
@@ -217,7 +289,7 @@ TreeError ParseLanguageOperators(Tokens* tkns, Text* buf)
     return NO_ERROR;
 }
 
-TreeError ParseBoolOperators(Tokens* tkns, Text* buf)
+TreeError  ParseBoolOperators(Tokens* tkns, Text* buf)
 {
     Operators id = NO_OP;
 
@@ -243,87 +315,145 @@ TreeError ParseMathOperators(Tokens* tkns, Text* buf)
     return NO_ERROR;
 }
 
-
-TreeError ParseVariable(Tokens* tkns, Text* buf)
+Node* GetGrammar(Tokens* tkns)
 {
-    char var[50] = {};
-    size_t i_var = 0;
-    bool is_var = false;
-    if (buf->str[buf->position] == '|')
-    {
-        buf->position++;
-        while (buf->str[buf->position] != '|')
-        {
-            fprintf(stderr, "<%c> ", buf->str[buf->position]);
-            var[i_var] = buf->str[buf->position];
-            buf->position++;
-            i_var++;
-        }
-        buf->position++;
-        is_var = true;
-    }
-
-    if (is_var == false)
-        return NO_ERROR;
+    Node* current = GetOperators(tkns);
     
-    for (size_t counter = 0; counter < NUM_ALPHA; counter++)
-    {
-        if (strcmp(var, morse_alphabet[counter].encoding) == 0)
-        {
-            tkns->tokens[tkns->position] = CreateVariableMorse(morse_alphabet[counter].value, NULL, NULL);
-            tkns->position++;
-        }
-    }
-
-
-    // while ((isalnum(buf->str[buf->position])) || (isspace(buf->str[buf->position])))
-            //     buf->position++;
-
-
-    //-------------------------------------------
-    // if (isalpha(buf->str[buf->position]))
-    // {
-    //     char var[MAX_SIZE_NAME] = {};
-    //     size_t i_var = 0;
-    //     var[i_var] = buf->str[buf->position];
-    //     i_var++;
-    //     buf->position++;
-    //     while (isalnum(buf->str[buf->position]) || buf->str[buf->position] == '_')
-    //     {
-    //         var[i_var] = buf->str[buf->position];
-    //         buf->position++;
-    //         i_var++;
-    //     }
-    //     tkns->tokens[tkns->position] = CreateVariable(var, NULL, NULL);
-    //     tkns->position++;
-    // }
-
-    return NO_ERROR;
-}
-
-
-
-TreeError ParseNumber(Tokens* tkns, Text* buf)
-{
-    int val = 0;
-    while (isdigit(buf->str[buf->position]))
-    {
-        val = 10 * val + buf->str[buf->position] - '0';
-        buf->position++;
-    }
-    if (val != 0)
-    {
-        tkns->tokens[tkns->position] = CreateNumber(val, NULL, NULL);
-        tkns->position++;    
-    }
-    
-    return NO_ERROR;
-}
-
-Node* GetG(Tokens* tkns)
-{
-    Node* current = GetExpression(tkns);
     return current;
+}
+
+Node* GetOperators(Tokens* tkns)
+{
+    Node* value_1 = NULL;
+
+    if (tkns->tokens[tkns->position]->type == OPERATOR)
+    {
+        if (tkns->tokens[tkns->position]->data.value_op == OP_CONDITION)
+        {
+            value_1 = GetIf(tkns);
+        }
+        else if (tkns->tokens[tkns->position]->data.value_op == OP_LOOP)
+        {
+            value_1 = GetLoop(tkns); 
+        }
+    }
+    else if (tkns->tokens[tkns->position]->type == VAR)
+    {
+        value_1 = GetAssign(tkns);
+    }
+    
+    if (value_1)
+    {
+        value_1->right = GetOperators(tkns);
+    }
+
+    return value_1;
+}
+
+Node* GetIf(Tokens* tkns)
+{   
+    Node* value_1 = NULL;
+    Node* value_2 = NULL;
+    
+    if (tkns->tokens[tkns->position]->data.value_op == OP_CONDITION)
+    {
+        value_1 = tkns->tokens[tkns->position];
+        (tkns->position)++;
+    }
+
+    value_1->left = GetBoolPrimaryExpression(tkns);
+    
+    if (tkns->tokens[tkns->position]->data.value_op == L_CURLY_BRACKET)
+    {
+        (tkns->position)++;
+        
+        value_1->right = GetOperators(tkns);
+        PrintNode(value_1->right, stdout, IN_ORDER);
+        printf("\n");
+
+        if (tkns->tokens[tkns->position]->data.value_op == R_CURLY_BRACKET)
+        {
+            (tkns->position)++;
+        }
+        printf("==%d\n", tkns->tokens[tkns->position]->data.value_op);
+    }
+    else 
+    {
+        printf("{{{{{}}}}}");
+        return NULL;
+    }
+    PrintNode(value_1, stdout, IN_ORDER);
+
+    return value_1;
+}
+
+Node* GetLoop(Tokens* tkns)
+{
+    Node* value_1 = NULL;
+    Node* value_2 = NULL;
+    
+    if (tkns->tokens[tkns->position]->data.value_op == OP_LOOP)
+    {
+        value_1 = tkns->tokens[tkns->position];
+        (tkns->position)++;
+    }
+    
+    value_1->left = GetBoolPrimaryExpression(tkns);
+    
+    if (tkns->tokens[tkns->position]->data.value_op == L_CURLY_BRACKET)
+    {
+        (tkns->position)++;
+        
+        value_1->right = GetOperators(tkns);
+        
+        if (tkns->tokens[tkns->position]->data.value_op == R_CURLY_BRACKET)
+        {
+            (tkns->position)++;
+        }
+    }
+    else 
+    {
+        return NULL;
+    }
+    
+    return value_1;
+}
+
+
+Node* GetAssign(Tokens* tkns)
+{
+    Node* left = GetVariable(tkns);
+    Node* value_1 = NULL;
+    
+    if (tkns->tokens[tkns->position]->data.value_op == OP_ASSIGN)
+    {
+        value_1 = tkns->tokens[tkns->position];
+        (tkns->position)++;
+    }
+    else
+    {
+        return NULL;
+    }
+
+    Node* right = GetExpression(tkns);
+
+    value_1->left = left;
+    value_1->right = right;
+
+    Node* value_2 = NULL;
+
+    if (tkns->tokens[tkns->position]->data.value_op == SEMICOLON)
+    {
+        value_2 = tkns->tokens[tkns->position];
+        (tkns->position)++;
+        value_2->left = value_1;
+    }
+    else
+    {
+        return NULL;
+    }
+
+    return value_2;
 }
 
 Node* GetExpression(Tokens* tkns)
@@ -424,6 +554,26 @@ Node* GetUnary(Tokens* tkns)
     return value_1;
 }
 
+Node* GetBoolPrimaryExpression(Tokens* tkns)
+{
+    if (tkns->tokens[tkns->position]->type == OPERATOR)
+    {
+        if (tkns->tokens[tkns->position]->data.value_op == L_BRACKET)
+        {
+            tkns->position++;
+            Node* val = GetBoolingExpression(tkns);
+            if (tkns->tokens[tkns->position]->data.value_op == R_BRACKET)
+                tkns->position++;
+            else
+                return NULL;
+
+            return val;
+        }
+    }
+
+    return GetVariable(tkns);
+}
+
 Node* GetPrimaryExpression(Tokens* tkns)
 {
     if (tkns->tokens[tkns->position]->type == OPERATOR)
@@ -441,10 +591,10 @@ Node* GetPrimaryExpression(Tokens* tkns)
         }
     }
 
-    return GetC(tkns);
+    return GetVariable(tkns);
 }
 
-Node* GetC(Tokens* tkns)
+Node* GetVariable(Tokens* tkns)
 {
     if (tkns->tokens[tkns->position]->type == VAR)
     {
@@ -452,12 +602,11 @@ Node* GetC(Tokens* tkns)
         tkns->position++;
         return var;
     }
-    return GetN(tkns);
+    return GetNumber(tkns);
 }
 
-Node* GetN(Tokens* tkns)
+Node* GetNumber(Tokens* tkns)
 {
-
     if (tkns->tokens[tkns->position]->type == NUM)
     {
         Node* num = tkns->tokens[tkns->position];
@@ -532,7 +681,8 @@ void PrintObject(Node* node, FILE* To)
     }
     else if (node->type == VAR)
     {
-        fprintf(To, "%s", node->data.variable);
+        fprintf(To, "%d %d %d", node->data.var[0], node->data.var[1], node->data.var[2]);
+        //fprintf(To, "%s", node->data.variable);
     }
 }
 
@@ -567,6 +717,31 @@ void PrintOperator(Operators value_Operators, FILE* To)
         case FUN_LN:
             fprintf(To, " ln ");
             break;
+        case OP_CONDITION:
+            fprintf(To, " if ");
+            break;
+        case OP_LOOP:
+            fprintf(To, " while ");
+            break;
+        case OP_ASSIGN:
+            fprintf(To, " = ");
+            break;
+        case OP_UN_SUB:
+            fprintf(To, " - ");
+            break;
+        case SEMICOLON:
+            fprintf(To, " ; ");
+            break;
+        case OP_ABOVE:
+            fprintf(To, " > ");
+            break;
+        case OP_BELOW:
+            fprintf(To, " < ");
+            break;
+        case NO_OP:
+        case L_CURLY_BRACKET:
+        case R_CURLY_BRACKET:
+        case MORSE_PARTITION:
         case L_BRACKET:
         case R_BRACKET:
         case END:
@@ -591,7 +766,7 @@ void DumpTokens(Tokens* tkns)
         }
         else if (tkns->tokens[i]->type == VAR)
         {
-            printf("var = <%d>;\n", tkns->tokens[i]->data.var_value);
+            printf("var = <%d %d %d>;\n", tkns->tokens[i]->data.var[0], tkns->tokens[i]->data.var[1], tkns->tokens[i]->data.var[2]);
             //printf("var = <%s>;\n", tkns->tokens[i]->data.variable);
         }
     }

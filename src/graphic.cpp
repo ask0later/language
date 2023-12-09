@@ -81,8 +81,20 @@ TreeError GraphicDumpNode(Node* node)
             case OP_LOOP:
                 sprintf(str, " while ");
                 break;
+            case OP_UN_SUB:
+                sprintf(str, " - ");
+                break;
+            case SEMICOLON:
+                sprintf(str, " ; ");
+                break;
+                break;
+            case NO_OP:
+            case L_CURLY_BRACKET:
+            case R_CURLY_BRACKET:
+            case MORSE_PARTITION:
             case L_BRACKET:
             case R_BRACKET:
+            case END:
             default:
                 printf("extra");
                 break;
@@ -91,7 +103,8 @@ TreeError GraphicDumpNode(Node* node)
     else if (node->type == VAR)
     {
         dtNodeStyle().fillcolor("#21C912");//HEX_GREEN
-        sprintf(str, "%d", node->data.var_value);
+        sprintf(str, "var = <%d %d %d>\n", node->data.var[0], node->data.var[1], node->data.var[2]);
+        //sprintf(str, "%d", node->data.var_value);
         //sprintf(str, "%s", node->data.variable);
     }
     
