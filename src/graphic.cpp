@@ -29,7 +29,7 @@ TreeError GraphicDumpNode(Node* node)
     if (!node) {return NO_ERROR;}
 
     char str[MAX_SIZE_ARG] = {};
-    if (node->type == NUM)
+    if (node->type == NUMBER)
     {
         dtNodeStyle().fillcolor("#7BF2DA");//HEX_TIFFANY
         sprintf(str, "%lg", node->data.value);
@@ -37,7 +37,7 @@ TreeError GraphicDumpNode(Node* node)
     else if (node->type == OPERATOR)
     {
         dtNodeStyle().fillcolor("#EE204D");//HEX_RED
-        switch(node->data.value_op)
+        switch(node->data.id_op)
         {
             case OP_ADD:
                 sprintf(str, " + ");
@@ -87,6 +87,8 @@ TreeError GraphicDumpNode(Node* node)
             case SEMICOLON:
                 sprintf(str, " ; ");
                 break;
+            case COMMA:
+                sprintf(str, " , ");
                 break;
             case NO_OP:
             case L_CURLY_BRACKET:
@@ -95,17 +97,25 @@ TreeError GraphicDumpNode(Node* node)
             case L_BRACKET:
             case R_BRACKET:
             case END:
+            case DEFINE:
+            case RET:
             default:
                 printf("extra");
                 break;
         }
     }
-    else if (node->type == VAR)
+    else if (node->type == VARIABLE)
     {
         dtNodeStyle().fillcolor("#21C912");//HEX_GREEN
-        sprintf(str, "var = <%d %d %d>\n", node->data.var[0], node->data.var[1], node->data.var[2]);
+        // sprintf(str, "%lu", node->data.id_var);
         //sprintf(str, "%d", node->data.var_value);
-        //sprintf(str, "%s", node->data.variable);
+        sprintf(str, "%s", node->data.name);
+    }
+    else if (node->type == FUNCTION)
+    {
+        dtNodeStyle().fillcolor("#735499");//HEX_PURPLE
+        sprintf(str, "%s", node->data.name);
+        //sprintf(str, "%lu", node->data.id_var);
     }
     
     

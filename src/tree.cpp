@@ -1,6 +1,51 @@
 #include "tree.h"
 
-Node* CreateVariable(int* var, Node* left, Node* right)
+// TreeError ConstructorTables(Tables* tables)
+// {
+//     tables->i_table = 0;
+//     tables->tables = (Names*) calloc(MAX_NUM_TABLES, sizeof(Names));
+//     if (!tables->tables) return ALLOC_ERROR;
+
+//     return NO_ERROR; 
+// }
+
+// TreeError DestructorTables(Tables* tables)
+// {
+//     DeleteNames(&(tables->tables));
+
+//     free(tables->tables);
+// }
+
+TreeError DestructorIterator(Iterator* func_it)
+{
+    size_t i = 0; 
+    while (i < MAX_NUM_FUNCTIONS)
+    {
+        i++;
+        // DestructorTree(&(func_it->funcs[i].tree));
+        // DeleteNames(&(func_it->funcs[i]));
+    }
+
+    return NO_ERROR;
+}
+
+TreeError CreateNames(Function* funcs)
+{
+    funcs->num_names = 0;
+
+    funcs->names = (_Name*) calloc(MAX_NUM_NAMES, sizeof(_Name));
+
+    return NO_ERROR;
+}
+
+TreeError DeleteNames(Function* funcs)
+{
+    free(funcs->names);
+
+    return NO_ERROR;
+}
+
+Node* CreateVariable(size_t id_var, char* name, Node* left, Node* right)
 {
     Node* node = (Node*) calloc(1, sizeof(Node));
     if (!node) {return 0;}
@@ -8,13 +53,30 @@ Node* CreateVariable(int* var, Node* left, Node* right)
     node->left   = left;
     node->right  = right;
 
-    node->type = VAR;
+    node->type = VARIABLE;
 
-    memcpy(node->data.var, var, SIZE_MORSE_SYMBOL);
+    memcpy(node->data.name, name, strlen(name));
+    //node->data.id_var = id_var;
 
     return node;
 }
 
+Node* CreateFunction(size_t id_fun, char* name, Node* left, Node* right)
+{
+    Node* node = (Node*) calloc(1, sizeof(Node));
+    if (!node) {return 0;}
+
+    node->left   = left;
+    node->right  = right;
+
+    node->type = FUNCTION;
+
+    memcpy(node->data.name, name, strlen(name));
+
+    //node->data.id_fun = id_fun;
+
+    return node;
+}
 
 Node* CreateNumber(double value, Node* left, Node* right)
 {
@@ -24,7 +86,7 @@ Node* CreateNumber(double value, Node* left, Node* right)
     node->left   = left;
     node->right  = right;
 
-    node->type = NUM;
+    node->type = NUMBER;
 
     node->data.value = value;
 
@@ -41,7 +103,7 @@ Node* CreateOperator(Operators value, Node* left, Node* right)
 
     node->type = OPERATOR;
 
-    node->data.value_op = value;
+    node->data.id_op = value;
 
     return node;
 }
@@ -56,29 +118,26 @@ Node* CreateNode(Type type, void* value, Node* left, Node* right)
 
     node->type = type;
 
-    // node->data.value_op  = NO_OP;
-    // node->data.value_fun = NO_FUN;
-    // node->data.variable  = NULL;
 
     switch (node->type)
     {
-    case NUM:
+    case NUMBER:
         node->data.value = *((double*) value);
         break;
     case OPERATOR:
-        node->data.value_op  = *((Operators*) value);
+        node->data.id_op  = *((Operators*) value);
         break;
-    case VAR:
+    case VARIABLE:
         //node->data.variable = strdup((const char*) value);
         break;
-
+    case FUNCTION:
+    case KEY_WORD:
     default:
         break;
     }
 
     return node;
 }
-
 
 void DeleteToken(Node* node)
 {
@@ -134,7 +193,6 @@ TreeError DestructorTokens(Tokens* tkns)
     return NO_ERROR;
 }
 
-
 TreeError CreateTokens(Tokens* tkns, Text* buf)
 {
     while (buf->str[buf->position] != '\0')
@@ -151,9 +209,12 @@ TreeError CreateTokens(Tokens* tkns, Text* buf)
         ParseLanguageOperators(tkns, buf);
 
         ParseNumOrVar(tkns, buf);
+
+        ParseFunction(tkns, buf);
     }
 
     tkns->tokens[tkns->position] = CreateOperator(END, NULL, NULL);
+    tkns->tokens[tkns->position]->text_pos = tkns->position;
 
     tkns->position++;
 
@@ -168,13 +229,13 @@ TreeError CreateTokens(Tokens* tkns, Text* buf)
     return NO_ERROR;
 }   
 
-bool FindCommand(Text* buf, const Command* cmds, const size_t num_commands, Operators* id)//, size_t* offset)
+bool FindCommand(Text* buf, const Command* cmds, const size_t num_commands, Operators* id, size_t* offset)
 {
     for (size_t i = 0; i < num_commands; i++)
     {
         if (strncmp(&(buf->str[buf->position]), cmds[i].name, cmds[i].size_name) == 0)
         {
-            buf->position += cmds[i].size_name;
+            (*offset) = cmds[i].size_name;
             (*id) = cmds[i].id;
 
             return true;
@@ -199,22 +260,107 @@ bool FindSymbol(char* source, const MorseAlpha* morse_symbol, const size_t num_s
     return false;
 }
 
+
+TreeError ParseFunction(Tokens* tkns, Text* buf)
+{
+    Operators id = NO_OP;
+    size_t offset = 0;
+
+    if (FindCommand(buf, function, NUM_COMMANDS_FUNCTION, &id, &offset) == true)
+    {
+        tkns->tokens[tkns->position] = CreateOperator(id, NULL, NULL);
+        tkns->tokens[tkns->position]->text_pos = buf->position;
+        tkns->position++;
+
+        buf->position += offset;
+
+        if (id == DEFINE)
+        {
+            SkipSpaces(buf);
+
+            if (buf->str[buf->position] == '|')
+            {
+                buf->position++;
+
+                MorseAlhabet morse_word[SIZE_SYMBOLS] = {};
+                size_t i_vars = 0;
+                size_t text_pos = buf->position - 1;
+                ReadMorseCode(morse_word, &i_vars, buf);
+                
+                double value = 0;
+
+                char name_fun[MAX_SIZE_NAME] = {};
+                size_t size_name = 0;
+                TranslateMorseCode(name_fun, morse_word, &size_name);
+
+                size_t id_fun = 0;
+
+                //MatchNamesTable(names, name_fun, &id_var);
+                
+                tkns->tokens[tkns->position] = CreateFunction(id_fun, name_fun, NULL, NULL);
+                tkns->tokens[tkns->position]->text_pos = text_pos;
+
+                (tkns->position)++;
+                
+                return NO_ERROR;
+            }
+        }
+    }
+
+    return NO_ERROR;
+}
+
+//ReadMorseCode
+
 TreeError ParseNumOrVar(Tokens* tkns, Text* buf)
 {
     if (buf->str[buf->position] == '|')
     {
         (buf->position)++;
 
-        ParseMorseCode(tkns, buf);
+        MorseAlhabet morse_word[SIZE_SYMBOLS] = {};
+
+        size_t i_vars = 0;
+        size_t text_pos = buf->position - 1;
+        
+        ReadMorseCode(morse_word, &i_vars, buf);
+        
+        double value = 0;
+
+        if (((morse_word[0]) - MORSE_0) > (MORSE_9 - MORSE_0))
+        {
+            char name_var[MAX_SIZE_NAME] = {};
+            size_t size_name = 0;
+            TranslateMorseCode(name_var, morse_word, &size_name);
+
+            size_t id_name = 0;
+
+            //MatchNamesTable(names, name_var, &id_name);
+
+            tkns->tokens[tkns->position] = CreateVariable(id_name, name_var, NULL, NULL);
+            tkns->tokens[tkns->position]->text_pos = text_pos;
+            tkns->position++;
+            
+            return NO_ERROR;
+        }
+
+        for (size_t i = 0; i < i_vars; i++)
+            value = 10 * value + (double)(morse_word[i] - MORSE_0);
+        //if ((morse_word[i] - MORSE_0) > 10) ERROR
+
+        tkns->tokens[tkns->position] = CreateNumber(value, NULL, NULL);
+        tkns->tokens[tkns->position]->text_pos = text_pos;
+        tkns->position++;
+
+        return NO_ERROR;
     }
 
     return NO_ERROR;
 }
 
-TreeError ReadingMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf)
+TreeError ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf)
 {
     char var[SIZE_MORSE_SYMBOL] = {};
-
     size_t i_var  = 0;
    
     MorseAlhabet id = MORSE_0;
@@ -250,53 +396,77 @@ TreeError ReadingMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf)
     return NO_ERROR;
 }
 
-TreeError ParseMorseCode(Tokens* tkns, Text* buf)
+
+TreeError MatchNamesTable(Table* names, char* name_var, size_t* id_var)
 {
-    MorseAlhabet id_value[SIZE_SYMBOLS] = {};
-    size_t i_vars = 0;
+    bool match = false;
 
-    ReadingMorseCode(id_value, &i_vars, buf);
-    
-    double value = 0;
-
-    if ((id_value[0] - MORSE_0) > (MORSE_9 - MORSE_0))
+    for (size_t i_var = 0; i_var < names->num_var; i_var++)
     {
-        tkns->tokens[tkns->position] = CreateVariable((int*) id_value, NULL, NULL);
-        tkns->position++;
-        
-        return NO_ERROR;
+        if (strncmp(name_var, names->vars[i_var].name, names->vars[i_var].name_size) == 0)
+        {
+            match = true;
+            (*id_var) = names->vars[i_var].id_name;
+            return NO_ERROR;
+        }
     }
 
-    for (size_t i = 0; i < i_vars; i++)
-        value = 10 * value + (double)(id_value[i] - MORSE_0);
+    if (match == false)
+    {
+        size_t size_name = strlen(name_var);
 
-    tkns->tokens[tkns->position] = CreateNumber(value, NULL, NULL);
-    tkns->position++;
+        (*id_var) = names->num_var;
+        names->vars[names->num_var].name_size = size_name;
+        memcpy(names->vars[names->num_var].name, name_var, size_name);
+        names->num_var++;
+    }
 
     return NO_ERROR;
 }
+
+TreeError TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_name)
+{
+    size_t i = 0;
+    while (var[i] != 0)
+    {
+        name_var[i] = var[i];
+        i++;
+    }
+    (*size_name) = i;
+
+    return NO_ERROR;
+}
+
 
 TreeError ParseLanguageOperators(Tokens* tkns, Text* buf)
 {
     Operators id = NO_OP;
+    size_t offset = 0;
 
-    if (FindCommand(buf, cmds_lang, NUM_LANG_COMMANDS, &id) == true)
+    if (FindCommand(buf, cmds_lang, NUM_LANG_COMMANDS, &id, &offset) == true)
     {
         tkns->tokens[tkns->position] = CreateOperator(id, NULL, NULL);
+        tkns->tokens[tkns->position]->text_pos = buf->position;
+        
         tkns->position++;
+        buf->position += offset;
     }
 
     return NO_ERROR;
 }
 
-TreeError  ParseBoolOperators(Tokens* tkns, Text* buf)
+TreeError ParseBoolOperators(Tokens* tkns, Text* buf)
 {
     Operators id = NO_OP;
+    size_t offset = 0;
 
-    if (FindCommand(buf, cmds_compare, NUM_COMPARE_COMMANDS, &id) == true)
+    if (FindCommand(buf, cmds_compare, NUM_COMPARE_COMMANDS, &id, &offset) == true)
     {
         tkns->tokens[tkns->position] = CreateOperator(id, NULL, NULL);
+        tkns->tokens[tkns->position]->text_pos = buf->position;
+        
         tkns->position++;
+        buf->position += offset;
     }
 
     return NO_ERROR;
@@ -305,131 +475,75 @@ TreeError  ParseBoolOperators(Tokens* tkns, Text* buf)
 TreeError ParseMathOperators(Tokens* tkns, Text* buf)
 {
     Operators id = NO_OP;
+    size_t offset = 0;
 
-    if (FindCommand(buf, math_cmds, NUM_MATH_COMMANDS, &id) == true)
+    if (FindCommand(buf, math_cmds, NUM_MATH_COMMANDS, &id, &offset) == true)
     {
         tkns->tokens[tkns->position] = CreateOperator(id, NULL, NULL);
+        tkns->tokens[tkns->position]->text_pos = buf->position;
+        
         tkns->position++;
+        buf->position += offset;
     }
 
     return NO_ERROR;
 }
 
-Node* GetGrammar(Tokens* tkns)
+Node* GetGrammar(Tokens* tkns, Iterator* func_it, TreeError* error)
 {
-    Node* current = GetOperators(tkns);
-    
-    return current;
+    while (tkns->tokens[tkns->position]->data.id_op == DEFINE)
+    {
+        printf("____________________________\n");
+        (tkns->position)++;
+        func_it->funcs->tree.root = GetFunction(tkns, func_it, error);
+        (func_it->i_func)++;
+    }
+
+    return func_it->funcs[func_it->i_func - 1].tree.root;
 }
 
-Node* GetOperators(Tokens* tkns)
+Node* GetOperators(Tokens* tkns, Iterator* func_it, TreeError* error)
 {
     Node* value_1 = NULL;
 
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        if (tkns->tokens[tkns->position]->data.value_op == OP_CONDITION)
-        {
-            value_1 = GetIf(tkns);
-        }
-        else if (tkns->tokens[tkns->position]->data.value_op == OP_LOOP)
-        {
-            value_1 = GetLoop(tkns); 
-        }
+        if ((tkns->tokens[tkns->position]->data.id_op == OP_CONDITION) ||\
+            (tkns->tokens[tkns->position]->data.id_op == OP_LOOP))
+            value_1 = GetWhileOrIf(tkns, func_it, error);
     }
-    else if (tkns->tokens[tkns->position]->type == VAR)
+    else if (tkns->tokens[tkns->position]->type == VARIABLE)
     {
-        value_1 = GetAssign(tkns);
+        value_1 = GetAssign(tkns, func_it, error);
     }
     
     if (value_1)
     {
-        value_1->right = GetOperators(tkns);
+        value_1->right = GetOperators(tkns, func_it, error);
     }
 
     return value_1;
 }
 
-Node* GetIf(Tokens* tkns)
-{   
+Node* GetFunction(Tokens* tkns, Iterator* func_it, TreeError* error)
+{
     Node* value_1 = NULL;
-    Node* value_2 = NULL;
-    
-    if (tkns->tokens[tkns->position]->data.value_op == OP_CONDITION)
+
+    if (tkns->tokens[tkns->position]->type == FUNCTION)
     {
         value_1 = tkns->tokens[tkns->position];
+        printf("AAA");
         (tkns->position)++;
     }
-
-    value_1->left = GetBoolPrimaryExpression(tkns);
-    
-    if (tkns->tokens[tkns->position]->data.value_op == L_CURLY_BRACKET)
+    else
     {
-        (tkns->position)++;
-        
-        value_1->right = GetOperators(tkns);
-
-        if (tkns->tokens[tkns->position]->data.value_op == R_CURLY_BRACKET)
-        {
-            (tkns->position)++;
-        }
-
-        if (tkns->tokens[tkns->position]->data.value_op == SEMICOLON)
-        {
-            value_2 = tkns->tokens[tkns->position];
-            value_2->left = value_1;
-            (tkns->position)++;
-        }
-    }
-    else 
-    {
+        // ERROR
         return NULL;
     }
 
-    return value_2;
-}
-
-Node* GetLoop(Tokens* tkns)
-{
-    Node* value_1 = NULL;
-    Node* value_2 = NULL;
-    
-    if (tkns->tokens[tkns->position]->data.value_op == OP_LOOP)
+    if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
     {
-        value_1 = tkns->tokens[tkns->position];
-        (tkns->position)++;
-    }
-    
-    value_1->left = GetBoolPrimaryExpression(tkns);
-    
-    if (tkns->tokens[tkns->position]->data.value_op == L_CURLY_BRACKET)
-    {
-        (tkns->position)++;
-        
-        value_1->right = GetOperators(tkns);
-        
-        if (tkns->tokens[tkns->position]->data.value_op == R_CURLY_BRACKET)
-        {
-            (tkns->position)++;
-        }
-    }
-    else 
-    {
-        return NULL;
-    }
-    
-    return value_1;
-}
-
-
-Node* GetAssign(Tokens* tkns)
-{
-    Node* left = GetVariable(tkns);
-    Node* value_1 = NULL;
-    
-    if (tkns->tokens[tkns->position]->data.value_op == OP_ASSIGN)
-    {
-        value_1 = tkns->tokens[tkns->position];
+        printf("BB");
         (tkns->position)++;
     }
     else
@@ -437,14 +551,148 @@ Node* GetAssign(Tokens* tkns)
         return NULL;
     }
 
-    Node* right = GetExpression(tkns);
+    Node* value_2 = NULL;
+    Node* value_3 = NULL;
+
+
+    // while (tkns->tokens[tkns->position]->data.id_op != R_BRACKET)
+    // {
+        printf("CCC");
+        value_2 = tkns->tokens[tkns->position];
+        (tkns->position)++;
+        PrintOperator(tkns->tokens[tkns->position]->data.id_op, stderr);
+        
+        if (tkns->tokens[tkns->position]->data.id_op == COMMA)
+        {
+            printf("EEE");
+            value_3 = tkns->tokens[tkns->position];
+            (tkns->position)++;
+
+            value_3->left = value_2;
+            value_3->right = tkns->tokens[tkns->position];;
+            
+            (tkns->position)++;
+            value_2 = value_3;
+        }
+        printf("FFF");
+    // }
+    // printf("GGG");
+
+    value_1->left = value_2;
+
+    (tkns->position)++;
+
+    if (tkns->tokens[tkns->position]->data.id_op == L_CURLY_BRACKET)
+    {
+        (tkns->position)++;
+    }
+    else
+    {
+        return NULL;
+    }
+
+    value_1->right = GetOperators(tkns, func_it, error);
+
+    if (tkns->tokens[tkns->position]->data.id_op == R_CURLY_BRACKET)
+    {
+        (tkns->position)++;
+    }
+    else
+    {
+        return NULL;
+    }
+
+    if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
+    {
+        (tkns->position)++;
+    }
+    else
+    {
+        return NULL;
+    }
+
+    return value_1;
+}
+
+Node* GetWhileOrIf(Tokens* tkns, Iterator* func_it, TreeError* error)
+{
+    Node* value_1 = NULL;
+    Node* value_2 = NULL;
+    
+    if ((tkns->tokens[tkns->position]->data.id_op == OP_CONDITION) || (tkns->tokens[tkns->position]->data.id_op == OP_LOOP))
+    {
+        value_1 = tkns->tokens[tkns->position];
+        (tkns->position)++;
+    }
+    else
+    {
+        (*error) = ERROR_IF_WHILE;
+        return NULL;
+    }
+
+    value_1->left = GetBoolPrimaryExpression(tkns, func_it, error);
+    
+    if (tkns->tokens[tkns->position]->data.id_op == L_CURLY_BRACKET)
+    {
+        (tkns->position)++;
+        
+        value_1->right = GetOperators(tkns, func_it, error);
+
+        if (tkns->tokens[tkns->position]->data.id_op == R_CURLY_BRACKET)
+        {
+            (tkns->position)++;
+        }
+        else
+        {
+            (*error) = ERROR_BRACKET;
+            return NULL;
+        }
+
+        if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
+        {
+            value_2 = tkns->tokens[tkns->position];
+            value_2->left = value_1;
+            (tkns->position)++;
+        }
+        else
+        {
+            (*error) = ERROR_SEMICOLON;
+            return NULL;
+        }
+    }
+    else 
+    {
+        (*error) = ERROR_BRACKET;
+        return NULL;
+    }
+
+    return value_2;
+}
+
+Node* GetAssign(Tokens* tkns, Iterator* func_it, TreeError* error)
+{
+    Node* left = GetVariable(tkns, func_it, error);
+    Node* value_1 = NULL;
+    
+    if (tkns->tokens[tkns->position]->data.id_op == OP_ASSIGN)
+    {
+        value_1 = tkns->tokens[tkns->position];
+        (tkns->position)++;
+    }
+    else
+    {
+        (*error) = ERROR_ASSIGN;
+        return NULL;
+    }
+
+    Node* right = GetExpression(tkns, func_it, error);
 
     value_1->left = left;
     value_1->right = right;
 
     Node* value_2 = NULL;
 
-    if (tkns->tokens[tkns->position]->data.value_op == SEMICOLON)
+    if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
     {
         value_2 = tkns->tokens[tkns->position];
         (tkns->position)++;
@@ -452,25 +700,26 @@ Node* GetAssign(Tokens* tkns)
     }
     else
     {
+        (*error) = ERROR_SEMICOLON;
         return NULL;
     }
 
     return value_2;
 }
 
-Node* GetExpression(Tokens* tkns)
+Node* GetExpression(Tokens* tkns, Iterator* func_it, TreeError* error)
 {
-    Node* value_1 = GetTerm(tkns);
+    Node* value_1 = GetTerm(tkns, func_it, error);
     Node* value_3 = NULL;
 
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        while ((tkns->tokens[tkns->position]->data.value_op == OP_ADD) || (tkns->tokens[tkns->position]->data.value_op == OP_SUB))
+        while ((tkns->tokens[tkns->position]->data.id_op == OP_ADD) || (tkns->tokens[tkns->position]->data.id_op == OP_SUB))
         {
             value_3 = tkns->tokens[tkns->position];
             tkns->position++;
             
-            Node* value_2 = GetTerm(tkns);
+            Node* value_2 = GetTerm(tkns, func_it, error);
             
             value_3->left = value_1;
             value_3->right = value_2;
@@ -482,19 +731,19 @@ Node* GetExpression(Tokens* tkns)
     return value_1;
 }
 
-Node* GetBoolingExpression(Tokens* tkns)
+Node* GetBoolingExpression(Tokens* tkns, Iterator* func_it, TreeError* error)
 {
-    Node* value_1 = GetExpression(tkns);
+    Node* value_1 = GetExpression(tkns, func_it, error);
     Node* value_3 = NULL;
 
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        if ((tkns->tokens[tkns->position]->data.value_op == OP_ABOVE) || (tkns->tokens[tkns->position]->data.value_op == OP_BELOW))
+        if ((tkns->tokens[tkns->position]->data.id_op == OP_ABOVE) || (tkns->tokens[tkns->position]->data.id_op == OP_BELOW))
         {
             value_3 = tkns->tokens[tkns->position];
             tkns->position++;
             
-            Node* value_2 = GetExpression(tkns);
+            Node* value_2 = GetExpression(tkns, func_it, error);
             
             value_3->left = value_1;
             value_3->right = value_2;
@@ -507,20 +756,20 @@ Node* GetBoolingExpression(Tokens* tkns)
 }
 
 
-Node* GetTerm(Tokens* tkns)
+Node* GetTerm(Tokens* tkns, Iterator* func_it, TreeError* error)
 {
-    Node* value_1 = GetUnary(tkns);
+    Node* value_1 = GetUnary(tkns, func_it, error);
     
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
         for (size_t i = 0; i < NUM_COMMANDS_T; i++)
         {
-            if (cmdsT[i].id == tkns->tokens[tkns->position]->data.value_op)
+            if (cmdsT[i].id == tkns->tokens[tkns->position]->data.id_op)
             {
                 Node* value_3 = tkns->tokens[tkns->position];
                 tkns->position++;
                 
-                Node* value_2 = GetUnary(tkns);
+                Node* value_2 = GetUnary(tkns, func_it, error);
                 value_3->left = value_1;
                 value_3->right = value_2;
 
@@ -532,18 +781,18 @@ Node* GetTerm(Tokens* tkns)
     return value_1;
 }
 
-Node* GetUnary(Tokens* tkns)
+Node* GetUnary(Tokens* tkns, Iterator* func_it, TreeError* error)
 {
     Node* value_1 = NULL;
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
         for (size_t i = 0; i < NUM_COMMANDS_U; i++)
         {
-            if (cmdsU[i].id == tkns->tokens[tkns->position]->data.value_op)
+            if (cmdsU[i].id == tkns->tokens[tkns->position]->data.id_op)
             {
                 value_1 = tkns->tokens[tkns->position];
                 tkns->position++;
-                Node* value_2 = GetPrimaryExpression(tkns);
+                Node* value_2 = GetPrimaryExpression(tkns, func_it, error);
 
                 value_1->right = value_2;
             }
@@ -551,20 +800,20 @@ Node* GetUnary(Tokens* tkns)
     }
     
     if (value_1 == NULL)
-        value_1 = GetPrimaryExpression(tkns);
+        value_1 = GetPrimaryExpression(tkns, func_it, error);
 
     return value_1;
 }
 
-Node* GetBoolPrimaryExpression(Tokens* tkns)
+Node* GetBoolPrimaryExpression(Tokens* tkns, Iterator* func_it, TreeError* error)
 {
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        if (tkns->tokens[tkns->position]->data.value_op == L_BRACKET)
+        if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
         {
             tkns->position++;
-            Node* val = GetBoolingExpression(tkns);
-            if (tkns->tokens[tkns->position]->data.value_op == R_BRACKET)
+            Node* val = GetBoolingExpression(tkns, func_it, error);
+            if (tkns->tokens[tkns->position]->data.id_op == R_BRACKET)
                 tkns->position++;
             else
                 return NULL;
@@ -573,18 +822,18 @@ Node* GetBoolPrimaryExpression(Tokens* tkns)
         }
     }
 
-    return GetVariable(tkns);
+    return GetVariable(tkns, func_it, error);
 }
 
-Node* GetPrimaryExpression(Tokens* tkns)
+Node* GetPrimaryExpression(Tokens* tkns, Iterator* func_it, TreeError* error)
 {
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        if (tkns->tokens[tkns->position]->data.value_op == L_BRACKET)
+        if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
         {
             tkns->position++;
-            Node* val = GetExpression(tkns);
-            if (tkns->tokens[tkns->position]->data.value_op == R_BRACKET)
+            Node* val = GetExpression(tkns, func_it, error);
+            if (tkns->tokens[tkns->position]->data.id_op == R_BRACKET)
                 tkns->position++;
             else
                 return NULL;
@@ -593,23 +842,23 @@ Node* GetPrimaryExpression(Tokens* tkns)
         }
     }
 
-    return GetVariable(tkns);
+    return GetVariable(tkns, func_it, error);
 }
 
-Node* GetVariable(Tokens* tkns)
+Node* GetVariable(Tokens* tkns, Iterator* func_it, TreeError* error)
 {
-    if (tkns->tokens[tkns->position]->type == VAR)
+    if (tkns->tokens[tkns->position]->type == VARIABLE)
     {
         Node* var = tkns->tokens[tkns->position];
         tkns->position++;
         return var;
     }
-    return GetNumber(tkns);
+    return GetNumber(tkns, func_it, error);
 }
 
-Node* GetNumber(Tokens* tkns)
+Node* GetNumber(Tokens* tkns, Iterator* func_it, TreeError* error)
 {
-    if (tkns->tokens[tkns->position]->type == NUM)
+    if (tkns->tokens[tkns->position]->type == NUMBER)
     {
         Node* num = tkns->tokens[tkns->position];
         tkns->position++;
@@ -619,73 +868,104 @@ Node* GetNumber(Tokens* tkns)
     return NULL;
 }
 
-void syntax_assert(bool x, Text* buf)
-{
-    if (x == false)
-    {
-        printf("syntax error: %s\n", buf->str);
-        printf("              ");
-        for (size_t i = 0; i < buf->position; i++)
-        {
-            printf(" ");
-        }
-        printf("^\n");
+// TreeError ReadMorseVariables(Tokens* tkns, Table* names)
+// {
+//     for (size_t i_tkns = 0; i_tkns < tkns->size; i_tkns++)
+//     {
+//         if (tkns->tokens[i_tkns]->type == VARIABLE)
+//         {
+//             char name_var[MAX_SIZE_NAME] = {};
+//             size_t size_name = 0;
+//             ReadMorseWord(name_var, tkns->tokens[i_tkns], &size_name);
+
+//             bool match = false;
+//             for (size_t i_var = 0; i_var < names->num_var; i_var++)
+//             {
+//                 if (strncmp(name_var, names->vars[i_var].name, names->vars[i_var].name_size) == 0)
+//                 {
+//                     match = true;
+//                     tkns->tokens[i_tkns]->data.id_var = names->vars[i_var].id_var;
+//                 }
+//             }
+
+//             if (match == false)
+//             {
+//                 tkns->tokens[i_tkns]->data.id_var = names->num_var;
+//                 names->vars[names->num_var].name_size = size_name;
+//                 memcpy(names->vars[names->num_var].name, name_var, size_name);
+//                 names->num_var++;
+//             }
+//         }
+//     }
+
+//     return NO_ERROR;
+// }
+
+// TreeError ReadMorseWord(char* name_var, Node* current, size_t* size_name)
+// {
+//     size_t i = 0;
+//     while (current->data.var[i] != 0)
+//     {
+//         name_var[i] = current->data.var[i];
+//         i++;
+//     }
+//     (*size_name) = i;
+
+//     return NO_ERROR;
+// }
 
 
-        exit(1);
-    }
-}
-
-TreeError PrintNode(Node* node, FILE* To, Order order_value)
+TreeError PrintNode(Node* node, FILE* To, Table* names, Order order_value)
 {
     if (!node) {return NO_ERROR;}
     if (To == NULL) {return FILE_NOT_OPEN;}
     
     TreeError error = NO_ERROR;
 
-    fprintf(To, "( ");
+    printf("(");
 
     if (order_value == PRE_ORDER)
-        PrintObject(node, To);
+        PrintObject(node, To, names);
 
     if (node->left)
     {
-        error = PrintNode(node->left, To, order_value);
+        error = PrintNode(node->left, To, names, order_value);
         if (error != NO_ERROR)
             return error;
     }
     
     if (order_value == IN_ORDER)
-        PrintObject(node, To);
+        PrintObject(node, To, names);
     
     if (node->right)
     {
-        error = PrintNode(node->right, To, order_value);
+        error = PrintNode(node->right, To, names, order_value);
         if (error != NO_ERROR)
             return error;
     }
     
     if (order_value == POST_ORDER)
-        PrintObject(node, To);
+        PrintObject(node, To, names);
 
-    fprintf(To, " ) ");
+    printf(")");
 
     return NO_ERROR;
 }
 
-void PrintObject(Node* node, FILE* To)
+void PrintObject(Node* node, FILE* To, Table* names)
 {
-    if (node->type == NUM)
+    if (node->type == NUMBER)
         fprintf(To, "%lg", node->data.value);
     else if (node->type == OPERATOR)
     {
-        PrintOperator(node->data.value_op, To);
+        PrintOperator(node->data.id_op, To);
     }
-    else if (node->type == VAR)
+    else if (node->type == VARIABLE)
     {
-        fprintf(To, "%d %d %d", node->data.var[0], node->data.var[1], node->data.var[2]);
-        //fprintf(To, "%s", node->data.variable);
+        fprintf(To, "%s", node->data.name);
+        //fprintf(To, "%s", names->vars[node->data.id_var].name);
     }
+    
 }
 
 void PrintOperator(Operators value_Operators, FILE* To)
@@ -734,42 +1014,80 @@ void PrintOperator(Operators value_Operators, FILE* To)
         case SEMICOLON:
             fprintf(To, " ; ");
             break;
+        case COMMA:
+            fprintf(To, " , ");
+            break;
         case OP_ABOVE:
             fprintf(To, " > ");
             break;
         case OP_BELOW:
             fprintf(To, " < ");
             break;
-        case NO_OP:
-        case L_CURLY_BRACKET:
-        case R_CURLY_BRACKET:
-        case MORSE_PARTITION:
         case L_BRACKET:
+            fprintf(To, " ( ");
+            break;
         case R_BRACKET:
+            fprintf(To, " ) ");
+            break;
+        case L_CURLY_BRACKET:
+            fprintf(To, " { ");
+            break;
+        case R_CURLY_BRACKET:
+            fprintf(To, " } ");
+            break;
+        case DEFINE:
+            fprintf(To, " define ");
+            break;
+        case RET:
+            fprintf(To, " return ");
+            break;    
         case END:
+            fprintf(To, " END ");
+            break;
+        case NO_OP:
+        case MORSE_PARTITION:
         default:
             printf("extra");
             break;
     }
 }
 
-
-void DumpTokens(Tokens* tkns)
+void DumpTokens(Tokens* tkns, Table* names)
 {
     for (size_t i = 0; i < tkns->size; i++)
     {
-        if (tkns->tokens[i]->type == OPERATOR)
-        {
-            printf("operator = %d;\n", tkns->tokens[i]->data.value_op);
-        }
-        else if (tkns->tokens[i]->type == NUM)
-        {
-            printf("num = %lg;\n", tkns->tokens[i]->data.value);
-        }
-        else if (tkns->tokens[i]->type == VAR)
-        {
-            printf("var = <%d %d %d>;\n", tkns->tokens[i]->data.var[0], tkns->tokens[i]->data.var[1], tkns->tokens[i]->data.var[2]);
-            //printf("var = <%s>;\n", tkns->tokens[i]->data.variable);
-        }
+        printf("tokens[%2lu] = ", i);
+        DumpToken(tkns->tokens[i], names);
+        printf("(указывает на строчку с позиции %lu\n", tkns->tokens[i]->text_pos);
+        //printf("\n");
     }
+}
+
+void DumpToken(Node* current, Table* names)
+{
+    if (current->type == OPERATOR)
+    {
+        PrintOperator(current->data.id_op, stdout);
+        printf("_%d_", current->data.id_op);
+    }
+    else if (current->type == NUMBER)
+    {
+        printf(" %lg ", current->data.value);
+    }
+    else if (current->type == VARIABLE)
+    {
+        printf("name = <%s>;", current->data.name);
+        //printf("id_var = %lu; name = <%s>;", current->data.id_var, names->vars[current->data.id_var].name);
+    }
+    else if (current->type == FUNCTION)
+    {
+        printf("function name = <%s>;", current->data.name);
+    }
+}
+
+void DumpErrors(TreeError error, Tokens* tkns, Text* buf)
+{
+    printf("\n\n%s\n", &buf->str[tkns->tokens[tkns->position]->text_pos]);
+    printf("после этого оператора ожидалось");
+
 }

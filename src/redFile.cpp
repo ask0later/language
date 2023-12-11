@@ -32,7 +32,6 @@ void ReadFile(Text* buf, const char* input_file)
     FILE* fname = fopen(input_file, "r");
 
     fread(buf->str, sizeof(char), buf->size_buffer, fname);
-    printf("<%s>", buf->str);
     
     fclose(fname);
 }

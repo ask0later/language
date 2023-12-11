@@ -13,23 +13,29 @@
 
 #include "readFile.h"
 
-
 const size_t MAX_SIZE_TREE  = 64;
 const size_t MAX_SIZE_ARG   = 64;
-const size_t MAX_SIZE_NAME  = 50;
+const size_t MAX_SIZE_NAME  = 10;
 const size_t MAX_NUM_VARS   = 10;
 const size_t MAX_NUM_TOKENS = 50;
+const size_t MAX_NUM_TABLES = 10;
+const size_t MAX_NUM_NAMES  = 10;
+const size_t MAX_NUM_FUNCTIONS = 10;
+
+
 const size_t SIZE_SYMBOLS      = 10;
 const size_t SIZE_MORSE_SYMBOL = 10;
 
-const size_t NUM_MATH_COMMANDS = 9;
+
 const size_t NUM_COMMANDS_T =  2;
 const size_t NUM_COMMANDS_U =  5;
-const size_t NUM_COMPARE_COMMANDS = 2;
-const size_t NUM_LANG_COMMANDS = 8;
-const size_t NUM_OPERATORS_COMMANDS = 2;
 
-typedef char* Elem_t;
+const size_t NUM_LANG_COMMANDS = 9;
+const size_t NUM_MATH_COMMANDS = 9;
+
+const size_t NUM_COMPARE_COMMANDS   = 2;
+const size_t NUM_COMMANDS_FUNCTION  = 2;
+const size_t NUM_OPERATORS_COMMANDS = 2;
 
 enum Order
 {
@@ -48,7 +54,11 @@ enum TreeError
     ERROR_POSITIONING_FUNC,
     DEFINE_IS_NULL,
     ELEMENT_NOT_FOUND,
-    READER_ERROR
+    READER_ERROR,
+    ERROR_SEMICOLON,
+    ERROR_BRACKET,
+    ERROR_IF_WHILE,
+    ERROR_ASSIGN
 };
 
 enum UnaryorBinary
@@ -59,9 +69,11 @@ enum UnaryorBinary
 
 enum Type
 {
-    NUM = 1,
+    NUMBER = 1,
     OPERATOR,
-    VAR
+    VARIABLE,
+    FUNCTION,
+    KEY_WORD
 };
 
 enum Operators
@@ -82,18 +94,21 @@ enum Operators
     L_CURLY_BRACKET,
     R_CURLY_BRACKET, 
     SEMICOLON,
+    COMMA,
     MORSE_PARTITION,
     OP_CONDITION,
     OP_LOOP,
     OP_ASSIGN,
     OP_ABOVE,
     OP_BELOW,
+    DEFINE,
+    RET,
     END
 };
 
 enum MorseAlhabet
 {
-    MORSE_A = 300,
+    MORSE_A = 65,
     MORSE_B,
     MORSE_C,
     MORSE_D, 
@@ -101,21 +116,21 @@ enum MorseAlhabet
     MORSE_F,
     MORSE_G,
     MORSE_H,
-    MORSE_W,
-    MORSE_V,
     MORSE_I,
     MORSE_J,
     MORSE_K,
     MORSE_L,
-    MORSE_M, 
+    MORSE_M,
     MORSE_N,
     MORSE_O,
-    MORSE_P, 
+    MORSE_P,
+    MORSE_Q,
     MORSE_R, 
     MORSE_S, 
     MORSE_T, 
-    MORSE_U, 
-    MORSE_Q, 
+    MORSE_U,
+    MORSE_V,
+    MORSE_W,     
     MORSE_X,
     MORSE_Y,
     MORSE_Z,
@@ -145,16 +160,19 @@ enum MorseAlhabet
 union tag_data
 {
     double         value;
-    MorseAlhabet var[SIZE_SYMBOLS];
-    Operators   value_op;
+    char name[MAX_SIZE_NAME];
+    size_t        id_fun;
+    size_t        id_var;
+    Operators      id_op;
 };
 
 struct Node
 {
-    tag_data  data;
-    Type      type;
-    Node*     left;
-    Node*    right;
+    tag_data    data;
+    Type        type;
+    Node*       left;
+    Node*      right;
+    size_t  text_pos;
 };
 
 struct Tree
@@ -174,17 +192,58 @@ struct Tokens
 
 struct Command
 {
-    char name[MAX_SIZE_NAME];
+    char name[MAX_SIZE_ARG];
     size_t   size_name;
     Type          type;
     Operators       id;
 };
 
-struct Var
+struct _Name
+{
+    Type                type;
+    size_t                id;
+    size_t         name_size;
+    char name[MAX_SIZE_NAME];
+};
+
+// struct _Table
+// {
+//     _Name*       names;
+//     size_t  num_names;
+// };
+
+// struct _Tables
+// {
+//     _Table*  tables;
+//     size_t i_table;
+// };
+
+struct Function
+{
+    Tree         tree;
+    _Name*      names;
+    size_t  num_names;
+};
+
+struct Iterator
+{   
+    Function funcs[MAX_NUM_FUNCTIONS];
+    size_t i_func;
+};
+
+//------------------------------------------------------------------------
+struct Names
 {
     char name[MAX_SIZE_NAME];
+    size_t           id_name;
     double             value;
     size_t         name_size;
+};
+
+struct Table
+{
+    Names vars[MAX_NUM_NAMES];
+    size_t            num_var;
 };
 
 const size_t SIZE_SYMBOL  = 1;
@@ -209,6 +268,12 @@ const Command math_cmds[NUM_MATH_COMMANDS] = \
     {"sqrt", SIZE_SQRT, OPERATOR, FUN_SQRT},\
     {"ln",   SIZE_LN,   OPERATOR, FUN_LN  }};
 
+const size_t SIZE_CALL = 19;
+const size_t SIZE_OUT  =  3;
+
+const Command function[NUM_COMMANDS_FUNCTION] = \
+   {{"handing over to you", SIZE_CALL, OPERATOR, DEFINE},
+    {"out",                 SIZE_OUT,  OPERATOR, RET   }};
 
 const Command cmdsT[NUM_COMMANDS_T] = \
    {{"*",    SIZE_MUL,  OPERATOR, OP_MUL},\
@@ -234,6 +299,7 @@ const Command cmds_lang[NUM_LANG_COMMANDS] = \
     {"encoding matches", SIZE_ASSIGN,    OPERATOR, OP_ASSIGN},
     {"reseption while",   SIZE_LOOP,      OPERATOR, OP_LOOP},
     {"reseption if",    SIZE_CONDITION, OPERATOR, OP_CONDITION},
+    {",", SIZE_SYMBOL, OPERATOR, COMMA},
     {";", SIZE_SYMBOL, OPERATOR, SEMICOLON}};
 
 const Command cmds_oper[NUM_OPERATORS_COMMANDS] = \
@@ -280,7 +346,7 @@ const MorseAlpha morse_alnum[NUM_ALNUM] = \
     {MORSE_Y, "-..-"}, {MORSE_X, "-.--"},\
     {MORSE_1, ".----"}, {MORSE_2, "..---"}, {MORSE_3, "...--"}, {MORSE_4, "....-"}, {MORSE_5, "....."},\
     {MORSE_6, "-...."}, {MORSE_7, "--..."}, {MORSE_8, "---.."}, {MORSE_9, "----."}, {MORSE_0, "-----"}};
-
+    
 
 const MorseAlpha morse_symbols[NUM_SPECIAL_SYMBOLS] = \
    {{MORSE_POINT,         "......"},\
@@ -302,7 +368,8 @@ void       DestructorTree(Tree* tree);
 
 Node* CreateNode(Type type, void* value, Node* left, Node* right);
 
-Node* CreateVariable(int* var, Node* left, Node* right);
+Node* CreateVariable(size_t id_var, char* name, Node* left, Node* right);
+Node* CreateFunction(size_t id_fun, char* name, Node* left, Node* right);
 Node* CreateNumber(double value, Node* left, Node* right);
 Node* CreateOperator(Operators value, Node* left, Node* right);
 
@@ -317,6 +384,7 @@ TreeError DeleteTokens(Tokens* tkns, Text* buf);
 
 void SkipSpaces(Text* buf);
 
+TreeError          ParseFunction(Tokens* tkns, Text* buf);
 TreeError          ParseNumOrVar(Tokens* tkns, Text* buf);
 TreeError         ParseMorseCode(Tokens* tkns, Text* buf);
 
@@ -324,38 +392,50 @@ TreeError     ParseMathOperators(Tokens* tkns, Text* buf);
 TreeError     ParseBoolOperators(Tokens* tkns, Text* buf);
 TreeError ParseLanguageOperators(Tokens* tkns, Text* buf);
 
-bool FindCommand(Text* buf, const Command* cmds, const size_t num_commands, Operators* id);
+bool FindCommand(Text* buf, const Command* cmds, const size_t num_commands, Operators* id, size_t* offset);
 bool FindSymbol(char* source, const MorseAlpha* morse_symbol, const size_t num_symbols, MorseAlhabet* id);
-TreeError ReadingMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf);
+TreeError ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf);
+
+TreeError MatchNamesTable(Table* names, char* name_var, size_t* id_var);
+
+Node* GetGrammar(Tokens* tkns, Iterator* func_it, TreeError* error);
+Node* GetOperators(Tokens* tkns, Iterator* func_it, TreeError* error);
+
+Node* GetExpression(Tokens* tkns, Iterator* func_it, TreeError* error);
+Node* GetBoolingExpression(Tokens* tkns, Iterator* func_it, TreeError* error);
+
+Node* GetTerm(Tokens* tkns, Iterator* func_it, TreeError* error);
+Node* GetUnary(Tokens* tkns, Iterator* func_it, TreeError* error);
+
+Node* GetPrimaryExpression(Tokens* tkns, Iterator* func_it, TreeError* error);
+Node* GetBoolPrimaryExpression(Tokens* tkns, Iterator* func_it, TreeError* error);
+Node* GetVariable(Tokens* tkns, Iterator* func_it, TreeError* error);
+Node* GetNumber(Tokens* tkns, Iterator* func_it, TreeError* error);
 
 
-Node* GetGrammar(Tokens* tkns);
-Node* GetOperators(Tokens* tkns);
+Node*  GetFunction(Tokens* tkns, Iterator* func_it, TreeError* error);
+Node* GetWhileOrIf(Tokens* tkns, Iterator* func_it, TreeError* error);
+Node*    GetAssign(Tokens* tkns, Iterator* func_it, TreeError* error);
 
-Node* GetExpression(Tokens* tkns);
-Node* GetBoolingExpression(Tokens* tkns);
+TreeError TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_name);
 
-Node* GetTerm(Tokens* tkns);
-Node* GetUnary(Tokens* tkns);
-
-Node* GetPrimaryExpression(Tokens* tkns);
-Node* GetBoolPrimaryExpression(Tokens* tkns);
-Node* GetVariable(Tokens* tkns);
-Node* GetNumber(Tokens* tkns);
-
-Node* GetIf(Tokens* tkns);
-Node* GetLoop(Tokens* tkns);
-Node* GetAssign(Tokens* tkns);
-
-void syntax_assert(bool x, Text* buf);
-
-
-
-
-TreeError  PrintNode(Node* node, FILE* To, Order order_value);
-void PrintObject(Node* node, FILE* To);
+TreeError  PrintNode(Node* node, FILE* To, Table* names, Order order_value);
+void PrintObject(Node* node, FILE* To, Table* names);
 void PrintOperator(Operators value_Operators, FILE* TO);
-void DumpTokens(Tokens* tkns);
+
+
+TreeError Verificator(Tokens* tkns);
+void DumpTokens(Tokens* tkns, Table* names);
+void DumpToken(Node* current, Table* names);
+void DumpErrors(TreeError error, Tokens* tkns, Text* buf);
+
+
+
+///////////////////
+
+TreeError DestructorIterator(Iterator* func_it);
+TreeError CreateNames(Function* funcs);
+TreeError DeleteNames(Function* funcs);
 
 
 #endif
