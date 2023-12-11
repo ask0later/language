@@ -1,5 +1,16 @@
-handing over to you |.- .-.. .-.. .- | ( |..- | ) 
+handing over to you |.- .-.. .-.. .- | ( |-.-- ..- | , |..- | ) 
 { 
     |..- | encoding matches |..--- ----- | ;
 };
 
+handing over to you |.- .- .-.. .-.. | ( |-.-- ..- | , |..- | ) 
+{ 
+    |-.-- ..- | encoding matches |..--- ---.. ....- ----- | ;
+    |-.-- | encoding matches |..--- ....- ----- |;
+    |..- | encoding matches |..--- ----- | ;
+    reseption while (|-..-| overflow |..--- ----- |) 
+    { 
+        |-.-- | encoding matches |..--- ....- ----- | ; 
+        |..- | encoding matches |..--- ----- | ;
+    };
+};

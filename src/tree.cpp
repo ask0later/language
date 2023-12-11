@@ -495,7 +495,7 @@ Node* GetGrammar(Tokens* tkns, Iterator* func_it, TreeError* error)
     {
         printf("____________________________\n");
         (tkns->position)++;
-        func_it->funcs->tree.root = GetFunction(tkns, func_it, error);
+        func_it->funcs[func_it->i_func].tree.root = GetFunction(tkns, func_it, error);
         (func_it->i_func)++;
     }
 
@@ -537,7 +537,6 @@ Node* GetFunction(Tokens* tkns, Iterator* func_it, TreeError* error)
     }
     else
     {
-        // ERROR
         return NULL;
     }
 
@@ -554,17 +553,13 @@ Node* GetFunction(Tokens* tkns, Iterator* func_it, TreeError* error)
     Node* value_2 = NULL;
     Node* value_3 = NULL;
 
-
-    // while (tkns->tokens[tkns->position]->data.id_op != R_BRACKET)
-    // {
-        printf("CCC");
+    do 
+    {
         value_2 = tkns->tokens[tkns->position];
         (tkns->position)++;
-        PrintOperator(tkns->tokens[tkns->position]->data.id_op, stderr);
         
         if (tkns->tokens[tkns->position]->data.id_op == COMMA)
         {
-            printf("EEE");
             value_3 = tkns->tokens[tkns->position];
             (tkns->position)++;
 
@@ -574,9 +569,8 @@ Node* GetFunction(Tokens* tkns, Iterator* func_it, TreeError* error)
             (tkns->position)++;
             value_2 = value_3;
         }
-        printf("FFF");
-    // }
-    // printf("GGG");
+        
+    } while ((tkns->tokens[tkns->position]->data.id_op != R_BRACKET));
 
     value_1->left = value_2;
 

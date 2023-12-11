@@ -36,7 +36,7 @@ int main()
 
     //PrintNode(test_tree.root, stdout, &names, IN_ORDER);
     
-    GraphicDump(&test_tree, &(func_it.funcs->tree));
+    GraphicDump(&(func_it.funcs[0].tree), &(func_it.funcs[1].tree));
 
     //DeleteNode(test_tree.root);
     
