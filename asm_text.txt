@@ -1,0 +1,22 @@
+fun_0:
+push var_0
+push var_1
+push 20
+pop var_1
+push var_1
+push 7
+add 
+ret
+
+fun_1:
+push var_0
+push var_1
+push 2840
+pop var_0
+push 240
+pop var_2
+pop var_0
+pop var_1
+call fun_0
+pop var_1
+

@@ -1,7 +1,7 @@
 #include "graphic.h"
 #include "Dotter.h"
 
-TreeError GraphicDump(Tree* tree1, Tree* tree2)
+TreeError   GraphicDump(size_t num_trees, ...)
 {
     dtBegin("Tree.dot");                        // Начало dot-описания графа
 
@@ -9,24 +9,37 @@ TreeError GraphicDump(Tree* tree1, Tree* tree2)
     dtNodeStyle ().style         ("filled");
     dtNodeStyle ().fontcolor      ("black");
 
-    if (tree1)
-        GraphicDumpNode(tree1->root);
-    if (tree2)
-        GraphicDumpNode(tree2->root);
+    va_list one_tree;
+    va_start(one_tree, num_trees);
+    
+    for (size_t i = 0; i < num_trees; i++)
+    {
+        GraphicDumpTree(va_arg(one_tree, Tree*));
+    }
+
+    va_end(one_tree);
 
     dtEnd();                                   // Конец dot-описания графа
 
     dtRender("Tree.dot", "Tree.jpg", "jpg", false);
 
-    return NO_ERROR;
+    return NO_ERROR_TREE;
+}
+
+TreeError GraphicDumpTree(Tree* tree)
+{
+    if (tree)
+        GraphicDumpNode(tree->root);
+    
+    return NO_ERROR_TREE;
 }
 
 
 TreeError GraphicDumpNode(Node* node)
 {
-    if (!node) return NO_ERROR;
+    if (!node) return NO_ERROR_TREE;
 
-    if (!node) {return NO_ERROR;}
+    if (!node) {return NO_ERROR_TREE;}
 
     char str[MAX_SIZE_ARG] = {};
     if (node->type == NUMBER)
@@ -90,6 +103,9 @@ TreeError GraphicDumpNode(Node* node)
             case COMMA:
                 sprintf(str, " , ");
                 break;
+            case RET:
+                sprintf(str, " return ");
+                break;
             case NO_OP:
             case L_CURLY_BRACKET:
             case R_CURLY_BRACKET:
@@ -98,9 +114,8 @@ TreeError GraphicDumpNode(Node* node)
             case R_BRACKET:
             case END:
             case DEFINE:
-            case RET:
             default:
-                printf("extra");
+                printf("extra_graphic");
                 break;
         }
     }
@@ -109,29 +124,29 @@ TreeError GraphicDumpNode(Node* node)
         dtNodeStyle().fillcolor("#21C912");//HEX_GREEN
         // sprintf(str, "%lu", node->data.id_var);
         //sprintf(str, "%d", node->data.var_value);
-        sprintf(str, "%s", node->data.name);
+        sprintf(str, "var_%lu", node->data.id_var);
     }
     else if (node->type == FUNCTION)
     {
         dtNodeStyle().fillcolor("#735499");//HEX_PURPLE
-        sprintf(str, "%s", node->data.name);
+        sprintf(str, "fun_%lu", node->data.id_fun);
         //sprintf(str, "%lu", node->data.id_var);
     }
     
     
     dtNode((int)(size_t) node, str);
 
-    if (node->left  != 0)
+    if (node->left)
     {
         GraphicDumpNode(node->left);
         dtLink((int)(size_t) node, (int)(size_t)(node->left), "");
     }
 
-    if (node->right != 0)
+    if (node->right)
     {
         GraphicDumpNode(node->right);
         dtLink((int)(size_t) node, (int)(size_t)(node->right), "");
     }
 
-    return NO_ERROR;
+    return NO_ERROR_TREE;
 }
