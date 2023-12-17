@@ -5,11 +5,9 @@ TreeError   GraphicDump(size_t num_trees, ...)
 {
     dtBegin("Tree.dot");                        // Начало dot-описания графа
 
-    dtNodeStyle ().shape        ("box");
-    dtNodeStyle ().style         ("filled");
+    dtNodeStyle ().shape          ("box");
+    dtNodeStyle ().style          ("filled");
     dtNodeStyle ().fontcolor      ("black");
-
-
     
     va_list one_tree;
     va_start(one_tree, num_trees);
@@ -89,6 +87,12 @@ TreeError GraphicDumpNode(Node* node)
             case OP_ASSIGN:
                 sprintf(str, " = ");
                 break;
+            case OP_EQUAL:
+                sprintf(str, " == ");
+                break;
+            case OP_NO_EQUAL:
+                sprintf(str, " != ");
+                break;
             case OP_CONDITION:
                 sprintf(str, " if ");
                 break;
@@ -106,6 +110,12 @@ TreeError GraphicDumpNode(Node* node)
                 break;
             case RET:
                 sprintf(str, " return ");
+                break;
+            case INPUT:
+                sprintf(str, " input ");
+                break;
+            case OUTPUT:
+                sprintf(str, " output ");
                 break;
             case NO_OP:
             case L_CURLY_BRACKET:

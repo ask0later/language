@@ -88,6 +88,12 @@ TreeError GraphicDumpNode(Node* node)
             case OP_ASSIGN:
                 sprintf(str, " = ");
                 break;
+            case OP_EQUAL:
+                sprintf(str, " == ");
+                break;
+            case OP_NO_EQUAL:
+                sprintf(str, " != ");
+                break;
             case OP_CONDITION:
                 sprintf(str, " if ");
                 break;
@@ -105,6 +111,12 @@ TreeError GraphicDumpNode(Node* node)
                 break;
             case RET:
                 sprintf(str, " return ");
+                break;
+            case INPUT:
+                sprintf(str, " input ");
+                break;
+            case OUTPUT:
+                sprintf(str, " output ");
                 break;
             case NO_OP:
             case L_CURLY_BRACKET:

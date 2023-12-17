@@ -1,1 +1,1 @@
-(fun_0( , (var_0)(var_1))( ; ( = (var_1)(20))( return ( + (var_1)(7)))))(fun_1( , (var_0)(var_1))( ; ( = (var_0)(2840))( ; ( = (var_2)(240))( ; ( = (var_1)(fun_0( , (var_0)(var_1))))))))
+(fun_0(var_0)( ; ( if ( == (var_0)(0))( return (1)))( ; ( if ( == (var_0)(1))( return (1)))( return ( * (var_0)(fun_0( - (var_0)(1))))))))(fun_1( ; ( input (var_1))( ; ( = (var_2)(fun_0(var_1)))( ; ( output (var_2))))))

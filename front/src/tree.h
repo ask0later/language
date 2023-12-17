@@ -77,10 +77,14 @@ enum Operators
     COMMA,
     MORSE_PARTITION,
     OP_CONDITION,
+    INPUT,
+    OUTPUT,
     OP_LOOP,
     OP_ASSIGN,
     OP_ABOVE,
     OP_BELOW,
+    OP_EQUAL,
+    OP_NO_EQUAL,
     DEFINE,
     RET,
     END
@@ -117,7 +121,6 @@ void       DestructorTree(Tree* tree);
 
 void DestructorTrees(Tree** trees, size_t num_trees);
 
-
 Node* CreateNode(Type type, void* value, Node* left, Node* right);
 
 Node* CreateVariable(size_t id_var, char* name, Node* left, Node* right);
@@ -126,6 +129,5 @@ Node* CreateNumber(double value, Node* left, Node* right);
 Node* CreateOperator(Operators value, Node* left, Node* right);
 
 void DeleteNode(Node* node);
-
 
 #endif

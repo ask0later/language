@@ -10,7 +10,10 @@ handing over to you |..-. .- -.-. -| (|-.|)
         out |.----|;
     };
 
-    out |-.| * |..-. .- -.-. -| (|-.| - |.----|) ;
+    |...-| encoding matches |-.| - |.----| ;
+    |-..-| encoding matches |-.|;
+    |..-.| encoding matches |..-. .- -.-. -| (|...-|) ;
+    out |-..-| * |..-.|;
 };
 
 handing over to you |-- .- .. -. | ()

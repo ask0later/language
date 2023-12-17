@@ -30,6 +30,7 @@ int main()
     LangError error = NO_ERROR_LANG;
     
     main_tree.root = GetGrammar(&tkns, &func_it, &error);
+    printf("КОЛИЧЕСТВО ФУНКЦИЙ = %lu\n", func_it.size);
 
     DumpNamesTables(&func_it);
 
@@ -48,7 +49,7 @@ int main()
 
     fclose(output);
     
-    GraphicDump(func_it.size, &(func_it.funcs[0].tree), &(func_it.funcs[1].tree));
+    GraphicDump(func_it.size, &(func_it.funcs[0].tree), &(func_it.funcs[1].tree), &(func_it.funcs[2].tree), &(func_it.funcs[3].tree), &(func_it.funcs[4].tree));// , &(func_it.funcs[5].tree));
 
     DestructorIterator(&func_it);
     DestructorTokens(&tkns);

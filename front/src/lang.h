@@ -209,6 +209,8 @@ Node* GetArgument(Tokens* tkns, Iterator* func_it, LangError* error);
 Node*  GetFunction(Tokens* tkns, Iterator* func_it, LangError* error);
 Node* GetWhileOrIf(Tokens* tkns, Iterator* func_it, LangError* error);
 Node*    GetAssign(Tokens* tkns, Iterator* func_it, LangError* error);
+
+Node*  GetInOutput(Tokens* tkns, Iterator* func_it, LangError* error);
 Node*    GetReturn(Tokens* tkns, Iterator* func_it, LangError* error);
 
 

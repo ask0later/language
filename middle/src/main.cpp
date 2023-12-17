@@ -11,31 +11,31 @@ int main()
 {
     struct Text buf = {};
 
-    Tree* array_tree[NUM_TREE] = {};
+    Tree* trees[NUM_TREE] = {};
 
     CreateBuffer(&buf, "../tree_text.txt");
     printf("Input text = <%s>\n", buf.str);
 
     size_t num_trees = 0;
-    CreateTree(&buf, array_tree, &num_trees);
+    CreateTree(&buf, trees, &num_trees);
 
-    SimplificationTrees(array_tree, num_trees);
-    GraphicDump(num_trees, array_tree[0], array_tree[1]);
+    SimplificationTrees(trees, num_trees);
+    GraphicDump(num_trees, trees[0], trees[1], trees[2], trees[3], trees[4]);
 
     FILE* output = fopen("../simple_tree_text.txt", "w");
     if (output == NULL)
     {
-        DestructorTrees(array_tree, num_trees);
+        DestructorTrees(trees, num_trees);
         DeleteBuffer(&buf);
         printf("error: file not open\n");
         return 1;
     }
 
-    PrintTrees(array_tree, num_trees, output);
+    PrintTrees(trees, num_trees, output);
 
     fclose(output);
     
-    DestructorTrees(array_tree, num_trees);
+    DestructorTrees(trees, num_trees);
 
     DeleteBuffer(&buf);
 }

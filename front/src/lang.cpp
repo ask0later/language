@@ -185,48 +185,6 @@ LangError ParseFunction(Tokens* tkns, Text* buf)
     return NO_ERROR_LANG;
 }
 
-// LangError MakeTokenWithName(Tokens* tkns, Text* buf, Operators id_op, Node* (*CreateSomething)(size_t, char*, Node*, Node*))
-// {
-//     buf->position++;
-
-//     MorseAlhabet morse_word[SIZE_SYMBOLS] = {};
-//     size_t i_vars = 0;
-//     size_t text_pos = buf->position - 1;
-//     ReadMorseCode(morse_word, &i_vars, buf);
-    
-//     double value = 0;
-
-//     char name_something[MAX_SIZE_NAME] = {};
-//     size_t size_name = 0;
-
-//     if (((morse_word[0]) - MORSE_0) <= (MORSE_9 - MORSE_0))
-//     {
-//         (morse_word[0]) - MORSE_0) > (MORSE_9 - MORSE_0)
-//     }
-
-//     TranslateMorseCode(name_something, morse_word, &size_name);
-
-//     size_t id_something = 0;
-
-//     //MatchNamesTable(names, name_something, &id_var);
-    
-//     if (id_op == DEFINE)
-//     {
-//         tkns->tokens[tkns->position] = CreateFunction(id_fun, name_fun, NULL, NULL);
-
-//     }
-//     else
-//     {
-
-//     }
-//     tkns->tokens[tkns->position]->text_pos = text_pos;
-
-//     (tkns->position)++;
-    
-//     return NO_ERROR;
-// }
-
-
 LangError ParseNumOrVar(Tokens* tkns, Text* buf)
 {
     if (buf->str[buf->position] == '|')
@@ -462,6 +420,7 @@ Node* GetGrammar(Tokens* tkns, Iterator* func_it, LangError* error)
         (func_it->size)++;
     }
 
+
     return func_it->funcs[func_it->size - 1].tree.root;
 }
 
@@ -475,10 +434,11 @@ Node* GetOperators(Tokens* tkns, Iterator* func_it, LangError* error)
             (tkns->tokens[tkns->position]->data.id_op == OP_LOOP))
             value_1 = GetWhileOrIf(tkns, func_it, error);
         else if (tkns->tokens[tkns->position]->data.id_op == RET)
-        {
             value_1 = GetReturn(tkns, func_it, error);
+        else if ((tkns->tokens[tkns->position]->data.id_op == INPUT) || (tkns->tokens[tkns->position]->data.id_op == OUTPUT))
+        {
+            value_1 = GetInOutput(tkns, func_it, error);
         }
-            
     }
     else if (tkns->tokens[tkns->position]->type == VARIABLE)
     {
@@ -493,6 +453,61 @@ Node* GetOperators(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_1;
 }
 
+Node* GetInOutput(Tokens* tkns, Iterator* func_it, LangError* error)
+{
+    Node* value_1 = NULL;
+
+    if ((tkns->tokens[tkns->position]->data.id_op == INPUT) || (tkns->tokens[tkns->position]->data.id_op == OUTPUT))
+    {
+        value_1 = tkns->tokens[tkns->position];
+        (tkns->position)++;
+    }
+    else
+    {
+        (*error) = SYNTAX_ERROR;
+        return NULL;
+    }
+
+    if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
+    {
+        tkns->position++;
+    }
+    else
+    {
+        (*error) = SYNTAX_ERROR;
+        return NULL;
+    }
+    
+    value_1->left = GetVariable(tkns, func_it, error);
+
+    if (tkns->tokens[tkns->position]->data.id_op == R_BRACKET)
+    {
+        tkns->position++;
+    }
+    else
+    {
+        (*error) = SYNTAX_ERROR;
+        return NULL;
+    }
+
+    Node* value_2 = NULL;
+
+    if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
+    {
+        value_2 = tkns->tokens[tkns->position];
+        (tkns->position)++;
+    }
+    else
+    {
+        (*error) = SYNTAX_ERROR;
+        return NULL;
+    }
+
+    value_2->left = value_1;
+
+    return value_2;
+}
+
 Node* GetArgument(Tokens* tkns, Iterator* func_it, LangError* error)
 {
     if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
@@ -505,17 +520,28 @@ Node* GetArgument(Tokens* tkns, Iterator* func_it, LangError* error)
         return NULL;
     }
 
+    if (tkns->tokens[tkns->position]->type == OPERATOR)
+    {
+        (tkns->position)++;
+        return NULL;
+    }
+
     Node* value_2 = NULL;
     Node* value_3 = NULL;
-    size_t id_var = 0;
 
     do 
     {
-        value_2 = tkns->tokens[tkns->position];
-
-        MatchNamesTable(func_it, tkns->tokens[tkns->position]->data.name, &id_var);
-        value_2->data.id_var = id_var;
-        (tkns->position)++;
+        if (tkns->tokens[tkns->position]->type == VARIABLE)
+        {
+            value_2 = GetExpression(tkns, func_it, error);
+        }
+        else if (tkns->tokens[tkns->position]->type == OPERATOR)
+        {
+            if (tkns->tokens[tkns->position]->data.id_op != COMMA)
+            {
+                value_2 = GetExpression(tkns, func_it, error);
+            }
+        }
         
         if (tkns->tokens[tkns->position]->data.id_op == COMMA)
         {
@@ -523,13 +549,8 @@ Node* GetArgument(Tokens* tkns, Iterator* func_it, LangError* error)
             (tkns->position)++;
 
             value_3->left = value_2;
-            value_3->right = tkns->tokens[tkns->position];;
+            value_3->right = GetExpression(tkns, func_it, error);
             
-            MatchNamesTable(func_it, tkns->tokens[tkns->position]->data.name, &id_var);
-
-            value_3->right->data.id_var = id_var;
-
-            (tkns->position)++;
             value_2 = value_3;
         }
         
@@ -539,7 +560,6 @@ Node* GetArgument(Tokens* tkns, Iterator* func_it, LangError* error)
 
     return value_2;
 }
-
 
 Node* GetFunction(Tokens* tkns, Iterator* func_it, LangError* error)
 {
@@ -744,49 +764,22 @@ Node* GetExpression(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_1;
 }
 
-Node* GetBoolingExpression(Tokens* tkns, Iterator* func_it, LangError* error)
-{
-    Node* value_1 = GetExpression(tkns, func_it, error);
-    Node* value_3 = NULL;
-
-    if (tkns->tokens[tkns->position]->type == OPERATOR)
-    {
-        if ((tkns->tokens[tkns->position]->data.id_op == OP_ABOVE) || (tkns->tokens[tkns->position]->data.id_op == OP_BELOW))
-        {
-            value_3 = tkns->tokens[tkns->position];
-            tkns->position++;
-            
-            Node* value_2 = GetExpression(tkns, func_it, error);
-            
-            value_3->left = value_1;
-            value_3->right = value_2;
-
-            value_1 = value_3;
-        }
-    }
-    
-    return value_1;
-}
-
 Node* GetTerm(Tokens* tkns, Iterator* func_it, LangError* error)
 {
     Node* value_1 = GetUnary(tkns, func_it, error);
     
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        for (size_t i = 0; i < NUM_COMMANDS_T; i++)
+        while ((tkns->tokens[tkns->position]->data.id_op == OP_MUL) || (tkns->tokens[tkns->position]->data.id_op == OP_DIV))
         {
-            if (cmdsT[i].id == tkns->tokens[tkns->position]->data.id_op)
-            {
-                Node* value_3 = tkns->tokens[tkns->position];
-                tkns->position++;
-                
-                Node* value_2 = GetUnary(tkns, func_it, error);
-                value_3->left = value_1;
-                value_3->right = value_2;
-
-                value_1 = value_3;
-            }
+            Node* value_3 = tkns->tokens[tkns->position];
+            tkns->position++;
+            
+            Node* value_2 = GetUnary(tkns, func_it, error);
+            value_3->left = value_1;
+            value_3->right = value_2;
+            
+            value_1 = value_3;
         }
     }
     
@@ -815,6 +808,30 @@ Node* GetUnary(Tokens* tkns, Iterator* func_it, LangError* error)
     {
         value_1 = GetPrimaryExpression(tkns, func_it, error);
     }
+    return value_1;
+}
+
+Node* GetBoolingExpression(Tokens* tkns, Iterator* func_it, LangError* error)
+{
+    Node* value_1 = GetExpression(tkns, func_it, error);
+    Node* value_3 = NULL;
+
+    if (tkns->tokens[tkns->position]->type == OPERATOR)
+    {
+        if ((tkns->tokens[tkns->position]->data.id_op == OP_ABOVE) || (tkns->tokens[tkns->position]->data.id_op == OP_BELOW) || (tkns->tokens[tkns->position]->data.id_op == OP_EQUAL) || (tkns->tokens[tkns->position]->data.id_op == OP_NO_EQUAL))
+        {
+            value_3 = tkns->tokens[tkns->position];
+            tkns->position++;
+            
+            Node* value_2 = GetExpression(tkns, func_it, error);
+            
+            value_3->left = value_1;
+            value_3->right = value_2;
+
+            value_1 = value_3;
+        }
+    }
+    
     return value_1;
 }
 

@@ -123,6 +123,12 @@ void PrintOperator(Operators value_Operators, FILE* To)
         case OP_BELOW:
             fprintf(To, " < ");
             break;
+        case OP_EQUAL:
+            fprintf(To, " == ");
+            break;
+        case OP_NO_EQUAL:
+            fprintf(To, " != ");
+            break;
         case L_BRACKET:
             fprintf(To, " ( ");
             break;
@@ -143,6 +149,12 @@ void PrintOperator(Operators value_Operators, FILE* To)
             break;    
         case END:
             fprintf(To, " END ");
+            break;
+        case INPUT:
+            fprintf(To, " input ");
+            break;
+        case OUTPUT:
+            fprintf(To, " output ");
             break;
         case NO_OP:
         case MORSE_PARTITION:

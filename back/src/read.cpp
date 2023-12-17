@@ -110,7 +110,7 @@ TreeError PasteObject(char* source, Node** node)
             id = id * 10 + source[i] - '0';
             i++;
         }
-        (*node)->data.id_fun = (size_t) source[4] - '0';
+        (*node)->data.id_fun = (size_t) id;
     }
 
     return NO_ERROR_TREE;
