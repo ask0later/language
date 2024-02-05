@@ -89,6 +89,7 @@ void PrintLoop(Node* node, FILE* To, size_t* num_while, size_t* num_if)
 {
     size_t old_num_while = *num_while;
     (*num_while)++;
+    
     fprintf(To, "while_%lu:\n", old_num_while);
     PrintBoolExpression(node->left, To);
     fprintf(To, "end_while_%lu\n", old_num_while);
@@ -168,18 +169,6 @@ void PrintArgFuncAnnoun(Node* node, FILE* To)
         PrintArgFuncAnnoun(node->right, To);
         PrintArgFuncAnnoun(node->left, To);
     }
-
-    // if (node->type == VARIABLE)
-    // {
-    //     fprintf(To, "push ");
-    //     PrintVariable(node, To);
-    //     fprintf(To, "\n");
-    // }
-    // else
-    // {
-    //     PrintArgFuncAnnoun(node->right, To);
-    //     PrintArgFuncAnnoun(node->left, To);
-    // }   
 }
 
 void PrintVariable(Node* node, FILE* To)
@@ -212,56 +201,20 @@ void PrintExpression(Node* node, FILE* To)
     {
         PrintExpression(node->left, To);
         PrintExpression(node->right, To);
-        switch(node->data.id_op)
-        {
-            case OP_ADD:
-                fprintf(To, "add \n");
-                break;
-            case OP_SUB:
-                fprintf(To, "sub \n");
-                break;
-            case OP_MUL:
-                fprintf(To, "mul \n");
-                break;
-            case OP_DIV:
-                fprintf(To, "div \n");
-                break;
-            case FUN_SIN:
-                fprintf(To, "sin \n");
-                break;
-            case FUN_COS:
-                fprintf(To, "cos \n");
-                break;
-            case FUN_SQRT:
-                fprintf(To, "sqrt \n");
-                break;
-            case FUN_POW:
-            case FUN_LN:
-            case OP_UN_SUB:
-            case L_BRACKET:
-            case R_BRACKET:
-            case L_CURLY_BRACKET:
-            case R_CURLY_BRACKET:
-            case SEMICOLON:
-            case COMMA:
-            case MORSE_PARTITION:
-            case OP_CONDITION:
-            case OP_LOOP:
-            case OP_ASSIGN:
-            case OP_ABOVE:
-            case OP_BELOW:
-            case OP_EQUAL:
-            case OP_NO_EQUAL:
-            case DEFINE:
-            case RET:
-            case END:
-            case NO_OP:
-            case INPUT:
-            case OUTPUT:
-            default:
-                printf("extra op asm");
-                break;
-        }
+        if (node->data.id_op == OP_ADD)
+            fprintf(To, "add \n");
+        else if (node->data.id_op == OP_SUB)
+            fprintf(To, "sub \n");
+        else if (node->data.id_op == OP_MUL)
+            fprintf(To, "mul \n");
+        else if (node->data.id_op == OP_DIV)
+            fprintf(To, "div \n");
+        else if (node->data.id_op == FUN_SIN)
+            fprintf(To, "sin \n");
+        else if (node->data.id_op == FUN_COS)
+            fprintf(To, "cos \n");
+        else if (node->data.id_op == FUN_SQRT)
+            fprintf(To, "sqrt \n");
     }
     else if (node->type == VARIABLE)
     {

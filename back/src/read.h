@@ -2,8 +2,8 @@
 #define READlib
 #include "tree.h"
 
-const size_t SIZE_FUN_ = 4;
-const size_t SIZE_VAR_ = 4;
+const size_t SIZE_FUNC_ = 5;
+const size_t SIZE_VAR_  = 4;
 
 TreeError CreateTree(Text* buf, Tree** array_tree, size_t* num_trees);
 
