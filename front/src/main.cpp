@@ -5,14 +5,21 @@
 #include "lang.h"
 #include "print.h"
 
-
-
-int main()
+int main(const int argc, const char* argv[])
 {
+    if (argc != 3)
+    {
+        printf("Введите текстовый файл с программой\n");
+        return 1;
+    }
+
+    const char* lang_file = argv[1];
+    const char* tree_file = argv[2];
+
     struct Text buf = {};
     struct Tree main_tree = {};
 
-    CreateBuffer(&buf, "../lang_text.txt");
+    CreateBuffer(&buf, lang_file);
     
     Iterator func_it = {};
 
@@ -30,11 +37,11 @@ int main()
     LangError error = NO_ERROR_LANG;
     
     main_tree.root = GetGrammar(&tkns, &func_it, &error);
-    printf("КОЛИЧЕСТВО ФУНКЦИЙ = %lu\n", func_it.size);
 
     DumpNamesTables(&func_it);
 
-    FILE* output = fopen("../tree_text.txt", "w");
+    FILE* output = fopen(tree_file, "w");
+    
     if (output == NULL)
     {
         DestructorIterator(&func_it);

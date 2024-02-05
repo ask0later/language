@@ -134,15 +134,12 @@ TreeError GraphicDumpNode(Node* node)
     else if (node->type == VARIABLE)
     {
         dtNodeStyle().fillcolor("#21C912");//HEX_GREEN
-        // sprintf(str, "%lu", node->data.id_var);
-        //sprintf(str, "%d", node->data.var_value);
         sprintf(str, "var_%lu", node->data.id_var);
     }
     else if (node->type == FUNCTION)
     {
         dtNodeStyle().fillcolor("#735499");//HEX_PURPLE
-        sprintf(str, "fun_%lu", node->data.id_fun);
-        //sprintf(str, "%lu", node->data.id_var);
+        sprintf(str, "func_%lu", node->data.id_fun);
     }
     
     

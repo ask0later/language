@@ -1,3 +1,4 @@
+jmp fun_1
 fun_0:
 pop [0]
 push [0]

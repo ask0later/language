@@ -2,6 +2,7 @@
 
 void PrintToAssembler(Tree** trees, size_t num_trees, FILE* To)
 {
+    fprintf(To, "jmp fun_%lu\n", num_trees - 1);
     for (size_t i = 0; i < num_trees; i++)
     {
         PrintFunction(trees[i]->root, To);

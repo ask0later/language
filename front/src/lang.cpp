@@ -5,12 +5,7 @@ LangError DestructorIterator(Iterator* func_it)
 {
     for (size_t i = 0; i < func_it->size; i++)
     {
-        //DestructorTree(&(func_it->funcs[i].tree));
-
         DeleteNames(&(func_it->funcs[i].vars));
-        //free(func_it->funcs[i].vars);
-
-        //DeleteNames(&(func_it->funcs[i]));
     }
 
     return NO_ERROR_LANG;
@@ -30,12 +25,9 @@ LangError DeleteNames(Name** name)
     return NO_ERROR_LANG;
 }
 
-
-
 void DeleteToken(Node* node)
 {
     free(node);
-
     return;
 }
 
@@ -218,8 +210,11 @@ LangError ParseNumOrVar(Tokens* tkns, Text* buf)
         }
 
         for (size_t i = 0; i < i_vars; i++)
+        {
+            if ((morse_word[i] - MORSE_0) > 10)
+                return SYNTAX_ERROR;
             value = 10 * value + (double)(morse_word[i] - MORSE_0);
-        //if ((morse_word[i] - MORSE_0) > 10) ERROR
+        }
 
         tkns->tokens[tkns->position] = CreateNumber(value, NULL, NULL);
         tkns->tokens[tkns->position]->text_pos = text_pos;
@@ -295,7 +290,6 @@ LangError MatchFuncNamesTable(Iterator* func_it, char* name_var, size_t* id_fun)
         func_it->table_funcs[func_it->size].type = FUNCTION;
 
         memcpy(func_it->table_funcs[func_it->size].name, name_var, size_name);
-        //(func_it->size)++;
     }
 
     return NO_ERROR_LANG;
@@ -325,7 +319,6 @@ LangError MatchNamesTable(Iterator* func_it, char* name_var, size_t* id_var)
     {
         func_it->funcs[func_it->size].offset = func_it->funcs[func_it->size - 1].num_names + func_it->funcs[func_it->size - 1].offset;
     }
-        
 
     if (match == false)
     {
@@ -430,11 +423,14 @@ Node* GetOperators(Tokens* tkns, Iterator* func_it, LangError* error)
 
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        if ((tkns->tokens[tkns->position]->data.id_op == OP_CONDITION) ||\
-            (tkns->tokens[tkns->position]->data.id_op == OP_LOOP))
+        if ((tkns->tokens[tkns->position]->data.id_op == OP_CONDITION) || (tkns->tokens[tkns->position]->data.id_op == OP_LOOP))
+        {
             value_1 = GetWhileOrIf(tkns, func_it, error);
+        }
         else if (tkns->tokens[tkns->position]->data.id_op == RET)
+        {
             value_1 = GetReturn(tkns, func_it, error);
+        }
         else if ((tkns->tokens[tkns->position]->data.id_op == INPUT) || (tkns->tokens[tkns->position]->data.id_op == OUTPUT))
         {
             value_1 = GetInOutput(tkns, func_it, error);
@@ -538,11 +534,8 @@ Node* GetArgument(Tokens* tkns, Iterator* func_it, LangError* error)
         else if (tkns->tokens[tkns->position]->type == OPERATOR)
         {
             if (tkns->tokens[tkns->position]->data.id_op != COMMA)
-            {
                 value_2 = GetExpression(tkns, func_it, error);
-            }
         }
-        
         if (tkns->tokens[tkns->position]->data.id_op == COMMA)
         {
             value_3 = tkns->tokens[tkns->position];

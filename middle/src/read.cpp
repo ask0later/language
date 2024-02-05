@@ -86,11 +86,11 @@ TreeError PasteObject(char* source, Node** node)
         (*node)->type  = NUMBER;
         (*node)->data.value = value;
     }
-    else if (strncmp(source, "fun_", SIZE_FUN_) == 0)
+    else if (strncmp(source, "func_", SIZE_FUNC_) == 0)
     {
         (*node)->type = FUNCTION;
         
-        size_t i = SIZE_FUN_;
+        size_t i = SIZE_FUNC_;
         int id = 0;
         while (source[i] != '\0')
         { 

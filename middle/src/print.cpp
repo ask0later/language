@@ -63,7 +63,7 @@ void PrintObject(Node* node, FILE* To)
     }
     else if (node->type == FUNCTION)
     {
-        fprintf(To, "fun_%lu", node->data.id_fun);
+        fprintf(To, "func_%lu", node->data.id_fun);
         //fprintf(To, "%s", funcs[node->data.id_fun].name);
     }
 }
