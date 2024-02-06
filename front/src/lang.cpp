@@ -1,7 +1,7 @@
 #include "lang.h"
 #include "operators.h"
 
-LangError DestructorIterator(Iterator* func_it)
+LangError DestructorIterator(FunctionShell* func_it)
 {
     for (size_t i = 0; i < func_it->size; i++)
     {
@@ -146,7 +146,6 @@ LangError ParseFunction(Tokens* tkns, Text* buf)
 
             if (buf->str[buf->position] == '|')
             {
-                //MakeTokenWithName(tkns, buf, id, CreateSomething);
                 buf->position++;
                 
                 MorseAlhabet morse_word[SIZE_SYMBOLS] = {};
@@ -160,8 +159,6 @@ LangError ParseFunction(Tokens* tkns, Text* buf)
 
                 size_t id_fun = 0;
 
-                //MatchNamesTable(names, name_fun, &id_var);
-                
                 tkns->tokens[tkns->position] = CreateFunction(id_fun, name_fun, NULL, NULL);
                 tkns->tokens[tkns->position]->text_pos = text_pos;
 
@@ -169,8 +166,6 @@ LangError ParseFunction(Tokens* tkns, Text* buf)
                 
                 return NO_ERROR_LANG;
             }
-            //else
-            // return ERROR
         }
     }
 
@@ -199,8 +194,6 @@ LangError ParseNumOrVar(Tokens* tkns, Text* buf)
             TranslateMorseCode(name_var, morse_word, &size_name);
 
             size_t id_name = 0;
-
-            //MatchNamesTable(names, name_var, &id_name);
 
             tkns->tokens[tkns->position] = CreateVariable(id_name, name_var, NULL, NULL);
             tkns->tokens[tkns->position]->text_pos = text_pos;
@@ -264,7 +257,7 @@ LangError ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf)
     return NO_ERROR_LANG;
 }
 
-LangError MatchFuncNamesTable(Iterator* func_it, char* name_var, size_t* id_fun)
+LangError MatchFuncNamesTable(FunctionShell* func_it, char* name_var, size_t* id_fun)
 {
     bool match = false;
 
@@ -295,7 +288,7 @@ LangError MatchFuncNamesTable(Iterator* func_it, char* name_var, size_t* id_fun)
     return NO_ERROR_LANG;
 }
 
-LangError MatchNamesTable(Iterator* func_it, char* name_var, size_t* id_var)
+LangError MatchNamesTable(FunctionShell* func_it, char* name_var, size_t* id_var)
 {
     bool match = false;
 
@@ -402,7 +395,7 @@ LangError ParseMathOperators(Tokens* tkns, Text* buf)
     return NO_ERROR_LANG;
 }
 
-Node* GetGrammar(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetGrammar(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     while (tkns->tokens[tkns->position]->data.id_op == DEFINE)
     {
@@ -417,7 +410,7 @@ Node* GetGrammar(Tokens* tkns, Iterator* func_it, LangError* error)
     return func_it->funcs[func_it->size - 1].tree.root;
 }
 
-Node* GetOperators(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetOperators(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     Node* value_1 = NULL;
 
@@ -449,7 +442,7 @@ Node* GetOperators(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_1;
 }
 
-Node* GetInOutput(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetInOutput(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     Node* value_1 = NULL;
 
@@ -504,7 +497,7 @@ Node* GetInOutput(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_2;
 }
 
-Node* GetArgument(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetArgument(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
     {
@@ -554,7 +547,7 @@ Node* GetArgument(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_2;
 }
 
-Node* GetFunction(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetFunction(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     Node* value_1 = NULL;
 
@@ -611,7 +604,7 @@ Node* GetFunction(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_1;
 }
 
-Node* GetReturn(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetReturn(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     Node* value_1 = NULL;
 
@@ -641,7 +634,7 @@ Node* GetReturn(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_1;
 }
 
-Node* GetWhileOrIf(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetWhileOrIf(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     Node* value_1 = NULL;
     Node* value_2 = NULL;
@@ -696,7 +689,7 @@ Node* GetWhileOrIf(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_2;
 }
 
-Node* GetAssign(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetAssign(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     Node* left = GetVariable(tkns, func_it, error);
     Node* value_1 = NULL;
@@ -733,7 +726,7 @@ Node* GetAssign(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_2;
 }
 
-Node* GetExpression(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetExpression(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     Node* value_1 = GetTerm(tkns, func_it, error);
     Node* value_3 = NULL;
@@ -757,7 +750,7 @@ Node* GetExpression(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_1;
 }
 
-Node* GetTerm(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetTerm(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     Node* value_1 = GetUnary(tkns, func_it, error);
     
@@ -779,7 +772,7 @@ Node* GetTerm(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_1;
 }
 
-Node* GetUnary(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetUnary(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     Node* value_1 = NULL;
     if (tkns->tokens[tkns->position]->type == OPERATOR)
@@ -804,7 +797,7 @@ Node* GetUnary(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_1;
 }
 
-Node* GetBoolingExpression(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetBoolingExpression(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     Node* value_1 = GetExpression(tkns, func_it, error);
     Node* value_3 = NULL;
@@ -828,7 +821,7 @@ Node* GetBoolingExpression(Tokens* tkns, Iterator* func_it, LangError* error)
     return value_1;
 }
 
-Node* GetBoolPrimaryExpression(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetBoolPrimaryExpression(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
@@ -848,7 +841,7 @@ Node* GetBoolPrimaryExpression(Tokens* tkns, Iterator* func_it, LangError* error
     return GetVariable(tkns, func_it, error);
 }
 
-Node* GetPrimaryExpression(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetPrimaryExpression(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
@@ -867,7 +860,7 @@ Node* GetPrimaryExpression(Tokens* tkns, Iterator* func_it, LangError* error)
     return GetVariable(tkns, func_it, error);
 }
 
-Node* GetVariable(Tokens* tkns, Iterator* func_it, LangError* error)
+Node* GetVariable(Tokens* tkns, FunctionShell* func_it, LangError* error)
 {
     if (tkns->tokens[tkns->position]->type == VARIABLE)
     {

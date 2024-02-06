@@ -5,6 +5,7 @@
 #include "lang.h"
 #include "print.h"
 
+
 int main(const int argc, const char* argv[])
 {
     if (argc != 3)
@@ -19,9 +20,9 @@ int main(const int argc, const char* argv[])
     struct Text buf = {};
     struct Tree main_tree = {};
 
-    CreateBuffer(&buf, lang_file);
+    CreateBuffer(&buf, lang_file); 
     
-    Iterator func_it = {};
+    FunctionShell func_shell = {};
 
     printf("Input text = <%s>\n", buf.str);
 
@@ -32,34 +33,30 @@ int main(const int argc, const char* argv[])
     
     DumpTokens(&tkns);
 
-    CreateNames(&(func_it.table_funcs));
-
     LangError error = NO_ERROR_LANG;
     
-    main_tree.root = GetGrammar(&tkns, &func_it, &error);
+    main_tree.root = GetGrammar(&tkns, &func_shell, &error);
 
-    DumpNamesTables(&func_it);
+    DumpNamesTables(&func_shell);
 
     FILE* output = fopen(tree_file, "w");
     
     if (output == NULL)
     {
-        DestructorIterator(&func_it);
+        DestructorIterator(&func_shell);
         DestructorTokens(&tkns);
         DeleteBuffer(&buf);
-        DeleteNames(&(func_it.table_funcs));
         printf("error: file not open\n");
         return 1;
     }
 
-    PrintTrees(&func_it, output);
+    PrintTrees(&func_shell, output);
 
     fclose(output);
     
-    GraphicDump(func_it.size, &(func_it.funcs[0].tree), &(func_it.funcs[1].tree), &(func_it.funcs[2].tree), &(func_it.funcs[3].tree), &(func_it.funcs[4].tree));// , &(func_it.funcs[5].tree));
+    GraphicDump(func_shell.size, &(func_shell.funcs[0].tree), &(func_shell.funcs[1].tree), &(func_shell.funcs[2].tree), &(func_shell.funcs[3].tree), &(func_shell.funcs[4].tree), &(func_shell.funcs[5].tree));
 
-    DestructorIterator(&func_it);
+    DestructorIterator(&func_shell);
     DestructorTokens(&tkns);
-    DeleteNames(&(func_it.table_funcs));
     DeleteBuffer(&buf);
 }

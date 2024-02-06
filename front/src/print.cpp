@@ -1,11 +1,11 @@
 #include "print.h"
 
 
-TreeError PrintTrees(Iterator* func_it, FILE* To)
+TreeError PrintTrees(FunctionShell* func_shell, FILE* To)
 {
-    for (size_t i = 0; i < func_it->size; i++)
+    for (size_t i = 0; i < func_shell->size; i++)
     {
-        PrintNode(func_it->funcs[i].tree.root, To, PRE_ORDER);
+        PrintNode(func_shell->funcs[i].tree.root, To, PRE_ORDER);
     }
 
     return NO_ERROR_TREE;
@@ -51,7 +51,9 @@ TreeError PrintNode(Node* node, FILE* To, Order order_value)
 void PrintObject(Node* node, FILE* To)
 {
     if (node->type == NUMBER)
+    {
         fprintf(To, "%lg", node->data.value);
+    }
     else if (node->type == OPERATOR)
     {
         PrintOperator(node->data.id_op, To);

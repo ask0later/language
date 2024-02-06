@@ -16,7 +16,6 @@ PREF_INC = ./hdr/
 SRC = $(wildcard $(PREF_SRC)*.cpp)
 OBJ = $(patsubst $(PREF_SRC)%.cpp, $(PREF_OBJ)%.o, $(SRC))
 
-
 $(TARGET) : $(OBJ) 
 	@$(CC) $(OBJ) $(CFLAGS) -o $(TARGET)
 

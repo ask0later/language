@@ -109,7 +109,6 @@ Node* CreateNode(Type type, void* value, Node* left, Node* right)
         node->data.id_op  = *((Operators*) value);
         break;
     case VARIABLE:
-        //node->data.variable = strdup((const char*) value);
         break;
     case FUNCTION:
     case KEY_WORD:
@@ -124,9 +123,6 @@ void DeleteNode(Node* node)
 {
     if (!node) return;
 
-    // if (node->type == VAR)
-    //     free(node->data.variable);
-    
     if (node->left)
         DeleteNode(node->left);
     if (node->right)
