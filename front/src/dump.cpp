@@ -36,18 +36,18 @@ void DumpToken(Node* current)
     }
 }
 
-void DumpNamesTables(FunctionShell* func_shell)
-{
-    for (size_t i_vars = 0; i_vars < func_shell->size; i_vars++)
-    {
-        DumpNamesTable(func_shell->funcs + i_vars);
-        printf("\n");
-    }
-    for (size_t i_func = 0; i_func < func_shell->size; i_func++)
-    {
-        printf("function[%lu] = %s; type = %d; id = %lu\n", i_func, func_shell->table_funcs[i_func].name, func_shell->table_funcs[i_func].type, func_shell->table_funcs[i_func].id);
-    }
-}
+// void DumpNamesTables(FunctionShell* func_shell)
+// {
+//     for (size_t i_vars = 0; i_vars < func_shell->size; i_vars++)
+//     {
+//         DumpNamesTable(func_shell->funcs + i_vars);
+//         printf("\n");
+//     }
+//     for (size_t i_func = 0; i_func < func_shell->size; i_func++)
+//     {
+//         printf("function[%lu] = %s; type = %d; id = %lu\n", i_func, func_shell->table_funcs[i_func].name, func_shell->table_funcs[i_func].type, func_shell->table_funcs[i_func].id);
+//     }
+// }
 
 void DumpNamesTable(Function* func)
 {

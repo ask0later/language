@@ -1,11 +1,11 @@
 #include "print.h"
 
 
-TreeError PrintTrees(FunctionShell* func_shell, FILE* To)
+TreeError PrintTrees(Tree** trees, size_t num_trees, FILE* To)
 {
-    for (size_t i = 0; i < func_shell->size; i++)
+    for (size_t i = 0; i < num_trees; i++)
     {
-        PrintNode(func_shell->funcs[i].tree.root, To, PRE_ORDER);
+        PrintNode(trees[i]->root, To, PRE_ORDER);
     }
 
     return NO_ERROR_TREE;

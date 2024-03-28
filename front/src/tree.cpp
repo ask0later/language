@@ -111,7 +111,6 @@ Node* CreateNode(Type type, void* value, Node* left, Node* right)
     case VARIABLE:
         break;
     case FUNCTION:
-    case KEY_WORD:
     default:
         break;
     }

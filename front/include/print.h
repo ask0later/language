@@ -4,7 +4,7 @@
 #include "tree.h"
 #include "lang.h"
 
-TreeError PrintTrees(FunctionShell* func_shell, FILE* To);
+TreeError PrintTrees(Tree** trees, size_t num_trees, FILE* To);
 
 TreeError PrintNode(Node* node, FILE* To, Order order_value);
 void PrintObject(Node* node, FILE* To);

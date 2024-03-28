@@ -70,12 +70,6 @@ enum MorseAlhabet
     MORSE_EXPOINT
 };
 
-enum LangError
-{
-    NO_ERROR_LANG,
-    SYNTAX_ERROR,
-    ALLOC_ERROR_LANG
-};
 
 struct Tokens
 {
@@ -98,13 +92,6 @@ struct Function
     Name*        vars;
     size_t  num_names;
     size_t     offset;
-};
-
-struct FunctionShell
-{   
-    Function      funcs[MAX_NUM_FUNCTIONS];
-    Name    table_funcs[MAX_NUM_FUNCTIONS];
-    size_t                            size;
 };
 
 struct Command
@@ -165,60 +152,59 @@ const MorseAlpha morse_symbols[NUM_SPECIAL_SYMBOLS] =
 
 
 
-LangError ConstructorTokens(Tokens* tkns, Text* buf);
-LangError DestructorTokens(Tokens* tkns);
+int ConstructorTokens(Tokens* tkns, Text* buf, err_allocator* err_alloc);
+int DestructorTokens(Tokens* tkns);
 
-LangError CreateTokens(Tokens* tkns, Text* buf);
-LangError DeleteTokens(Tokens* tkns, Text* buf);
+int CreateTokens(Tokens* tkns, Text* buf, err_allocator* err_alloc);
+int DeleteTokens(Tokens* tkns, Text* buf);
 
 void SkipSpaces(Text* buf);
 
-LangError          ParseFunction(Tokens* tkns, Text* buf);
-LangError          ParseNumOrVar(Tokens* tkns, Text* buf);
-LangError         ParseMorseCode(Tokens* tkns, Text* buf);
 
-LangError     ParseMathOperators(Tokens* tkns, Text* buf);
-LangError     ParseBoolOperators(Tokens* tkns, Text* buf);
-LangError ParseLanguageOperators(Tokens* tkns, Text* buf);
+int ParseNameOrNumber(Tokens* tkns, Text* buf);
 
-bool FindCommand(Text* buf, const Command* cmds, const size_t num_commands, Operators* id, size_t* offset);
+int ParseOperator(Tokens* tkns, Text* buf);
+
 bool FindSymbol(char* source, const MorseAlpha* morse_symbol, const size_t num_symbols, MorseAlhabet* id);
-LangError ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf);
-
-LangError MakeTokenWithName(Tokens* tkns, Text* buf, Operators id_op, Node* (*CreateSomething)(size_t, char*, Node*, Node*));
+int ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf);
 
 
-LangError MatchNamesTable(FunctionShell* func_shell, char* name_var, size_t* id_var);
-LangError MatchFuncNamesTable(FunctionShell* func_shell, char* name_var, size_t* id_fun);
-
-Node* GetGrammar(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-Node* GetOperators(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-
-Node* GetExpression(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-Node* GetBoolingExpression(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-
-Node* GetTerm(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-Node* GetUnary(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-
-Node* GetPrimaryExpression(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-Node* GetBoolPrimaryExpression(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-Node* GetVariable(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-Node* GetNumber(Tokens* tkns, LangError* error);
-Node* GetArgument(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-
-Node*  GetFunction(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-Node* GetWhileOrIf(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-Node*    GetAssign(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-
-Node*  GetInOutput(Tokens* tkns, FunctionShell* func_shell, LangError* error);
-Node*    GetReturn(Tokens* tkns, FunctionShell* func_shell, LangError* error);
+int MakeTokenWithName(Tokens* tkns, Text* buf, Operators id_op, Node* (*CreateSomething)(size_t, char*, Node*, Node*));
 
 
-LangError TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_name);
+int MatchNamesTable(Function* funcs, char* name_var, size_t* id_var);
+int MatchFuncNamesTable(Function* funcs, char* name_var, size_t* id_fun);
 
-LangError DestructorIterator(FunctionShell* func_shell);
-LangError CreateNames(Name** name);
-LangError DeleteNames(Name** name);
+
+
+Node* GetGrammar(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+Node* GetOperators(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+
+Node* GetExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+Node* GetBoolingExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+
+Node* GetTerm(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+Node* GetUnary(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+
+Node* GetPrimaryExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+Node* GetBoolPrimaryExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+Node* GetVariable(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+Node* GetNumber(Tokens* tkns, err_allocator* err_alloc);
+Node* GetArgument(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+
+Node*  GetFunction(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+Node* GetWhileOrIf(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+Node*    GetAssign(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+
+Node*  GetInOutput(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+Node*    GetReturn(Tokens* tkns, Function* funcs, err_allocator* err_alloc);
+
+
+int TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_name);
+
+// int DestructorIterator(FunctionShell* func_shell);
+int CreateNames(Name** name);
+int DeleteNames(Name** name);
 void DeleteToken(Node* node);
 
 

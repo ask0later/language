@@ -1,28 +1,20 @@
 #include "lang.h"
 #include "operators.h"
+#include "error_allocator.h"
 
-LangError DestructorIterator(FunctionShell* func_it)
-{
-    for (size_t i = 0; i < func_it->size; i++)
-    {
-        DeleteNames(&(func_it->funcs[i].vars));
-    }
 
-    return NO_ERROR_LANG;
-}
-
-LangError CreateNames(Name** name)
+int CreateNames(Name** name)
 {
     (*name) = (Name*) calloc(MAX_NUM_NAMES, sizeof(Name));
 
-    return NO_ERROR_LANG;
+    return 0;
 }
 
-LangError DeleteNames(Name** name)
+int DeleteNames(Name** name)
 {
     free(*name);
 
-    return NO_ERROR_LANG;
+    return 0;
 }
 
 void DeleteToken(Node* node)
@@ -31,17 +23,21 @@ void DeleteToken(Node* node)
     return;
 }
 
-LangError ConstructorTokens(Tokens* tkns, Text* buf)
+int ConstructorTokens(Tokens* tkns, Text* buf, err_allocator* err_alloc)
 {
     tkns->size = buf->size_buffer;
     tkns->position = 0;
     tkns->tokens = (Node**) calloc(tkns->size, sizeof(Node*));
-    if (!tkns->tokens) return ALLOC_ERROR_LANG;
+    if (!tkns->tokens)
+    {
+        ERROR_INSERT("dynamic allocation is fault");
+        return 1;
+    }
     
-    return NO_ERROR_LANG;
+    return 0;
 }
 
-LangError DestructorTokens(Tokens* tkns)
+int DestructorTokens(Tokens* tkns)
 {
     for (size_t i = 0; i < tkns->size; i++)
         DeleteToken(tkns->tokens[i]);
@@ -50,7 +46,7 @@ LangError DestructorTokens(Tokens* tkns)
     tkns->position = (size_t) INT_MAX;
     free(tkns->tokens);
     
-    return NO_ERROR_LANG;
+    return 0;
 }
 
 void SkipSpaces(Text* buf)
@@ -59,24 +55,20 @@ void SkipSpaces(Text* buf)
         buf->position++;
 }
 
-LangError CreateTokens(Tokens* tkns, Text* buf)
+
+
+int CreateTokens(Tokens* tkns, Text* buf, err_allocator* err_alloc)
 {
     while (buf->str[buf->position] != '\0')
     {
         SkipSpaces(buf);
         
         if (buf->position == buf->size_buffer)
-            return NO_ERROR_LANG;
+            return 0;
+
+        ParseOperator(tkns, buf);
         
-        ParseMathOperators(tkns, buf);
-
-        ParseBoolOperators(tkns, buf);
-
-        ParseLanguageOperators(tkns, buf);
-
-        ParseNumOrVar(tkns, buf);
-
-        ParseFunction(tkns, buf);
+        ParseNameOrNumber(tkns, buf);
     }
 
     tkns->tokens[tkns->position] = CreateOperator(END, NULL, NULL);
@@ -87,92 +79,40 @@ LangError CreateTokens(Tokens* tkns, Text* buf)
     tkns->size = tkns->position;
 
     Node** ptr = (Node**) realloc(tkns->tokens, tkns->size * sizeof(Node*));
-    if (ptr == NULL) {return ALLOC_ERROR_LANG;}
+
+    if (ptr == NULL) 
+    {
+        ERROR_INSERT("dynamic allocation is fault (realloc)");
+        return 1;
+    }
 
     tkns->tokens = ptr;
     tkns->position = 0;
 
-    return NO_ERROR_LANG;
+    return 0;
 }   
 
-bool FindCommand(Text* buf, const Command* cmds, const size_t num_commands, Operators* id, size_t* offset)
+
+int ParseOperator(Tokens* tkns, Text* buf)
 {
-    for (size_t i = 0; i < num_commands; i++)
+    for (size_t i = 0; i < COMMAND_NUM; i++)
     {
-        if (strncmp(&(buf->str[buf->position]), cmds[i].name, cmds[i].size_name) == 0)
+        if (strncmp(buf->str + buf->position, language_cmds[i].name, language_cmds[i].size_name) == 0)
         {
-            (*offset) = cmds[i].size_name;
-            (*id) = cmds[i].id;
-
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool FindSymbol(char* source, const MorseAlpha* morse_symbol, const size_t num_symbols, MorseAlhabet* id)
-{
-    for (size_t i = 0; i < num_symbols; i++)
-    {
-        if (strcmp(source, morse_symbol[i].encoding) == 0)
-        {
-            (*id) = morse_symbol[i].value;
-
-            return true;
-        }
-    }
-    
-    return false;
-}
-
-
-LangError ParseFunction(Tokens* tkns, Text* buf)
-{
-    Operators id = NO_OP;
-    size_t offset = 0;
-
-    if (FindCommand(buf, function, NUM_COMMANDS_FUNCTION, &id, &offset) == true)
-    {
-        tkns->tokens[tkns->position] = CreateOperator(id, NULL, NULL);
-        tkns->tokens[tkns->position]->text_pos = buf->position;
-        tkns->position++;
-
-        buf->position += offset;
+            tkns->tokens[tkns->position] = CreateOperator(language_cmds[i].id, NULL, NULL);
+            tkns->tokens[tkns->position]->text_pos = buf->position;
         
-        if (id == DEFINE)
-        {
-            SkipSpaces(buf);
+            tkns->position++;
+            buf->position += language_cmds[i].size_name;
 
-            if (buf->str[buf->position] == '|')
-            {
-                buf->position++;
-                
-                MorseAlhabet morse_word[SIZE_SYMBOLS] = {};
-                size_t i_vars = 0;
-                size_t text_pos = buf->position - 1;
-                ReadMorseCode(morse_word, &i_vars, buf);
-
-                char name_fun[MAX_SIZE_NAME] = {};
-                size_t size_name = 0;
-                TranslateMorseCode(name_fun, morse_word, &size_name);
-
-                size_t id_fun = 0;
-
-                tkns->tokens[tkns->position] = CreateFunction(id_fun, name_fun, NULL, NULL);
-                tkns->tokens[tkns->position]->text_pos = text_pos;
-
-                (tkns->position)++;
-                
-                return NO_ERROR_LANG;
-            }
+            return 0;
         }
     }
-
-    return NO_ERROR_LANG;
+    return 0;
 }
 
-LangError ParseNumOrVar(Tokens* tkns, Text* buf)
+
+int ParseNameOrNumber(Tokens* tkns, Text* buf)
 {
     if (buf->str[buf->position] == '|')
     {
@@ -195,17 +135,28 @@ LangError ParseNumOrVar(Tokens* tkns, Text* buf)
 
             size_t id_name = 0;
 
-            tkns->tokens[tkns->position] = CreateVariable(id_name, name_var, NULL, NULL);
+            if (tkns->tokens[tkns->position - 1]->data.id_op == DEFINE)
+            {
+                tkns->tokens[tkns->position] = CreateFunction(id_name, name_var, NULL, NULL);
+            }
+            else
+            {
+                tkns->tokens[tkns->position] = CreateVariable(id_name, name_var, NULL, NULL);
+            }
+
             tkns->tokens[tkns->position]->text_pos = text_pos;
             tkns->position++;
             
-            return NO_ERROR_LANG;
+            return 0;
         }
 
         for (size_t i = 0; i < i_vars; i++)
         {
             if ((morse_word[i] - MORSE_0) > 10)
-                return SYNTAX_ERROR;
+            {
+                //ERROR_INSERT("syntax error");
+                return 1;
+            }
             value = 10 * value + (double)(morse_word[i] - MORSE_0);
         }
 
@@ -213,13 +164,32 @@ LangError ParseNumOrVar(Tokens* tkns, Text* buf)
         tkns->tokens[tkns->position]->text_pos = text_pos;
         tkns->position++;
 
-        return NO_ERROR_LANG;
+        return 0;
     }
 
-    return NO_ERROR_LANG;
+    return 0;
+
+
 }
 
-LangError ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf)
+
+bool FindSymbol(char* source, const MorseAlpha* morse_symbol, const size_t num_symbols, MorseAlhabet* id)
+{
+    for (size_t i = 0; i < num_symbols; i++)
+    {
+        if (strcmp(source, morse_symbol[i].encoding) == 0)
+        {
+            (*id) = morse_symbol[i].value;
+
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+
+int ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf)
 {
     char var[SIZE_MORSE_SYMBOL] = {};
     size_t i_var  = 0;
@@ -254,83 +224,11 @@ LangError ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf)
 
     buf->position++;
 
-    return NO_ERROR_LANG;
+    return 0;
 }
 
-LangError MatchFuncNamesTable(FunctionShell* func_it, char* name_var, size_t* id_fun)
-{
-    bool match = false;
 
-    for (size_t i_func = 0; i_func < func_it->size; i_func++)
-    {
-        if (strncmp(name_var, func_it->table_funcs[i_func].name, func_it->table_funcs[i_func].name_size) == 0)
-        {
-            match = true;
-            (*id_fun) = func_it->table_funcs[i_func].id;
-            return NO_ERROR_LANG;
-        }
-    }
-    
-    if (match == false)
-    {
-        size_t size_name = strlen(name_var);
-
-        (*id_fun) = func_it->size;
-
-        func_it->table_funcs[func_it->size].name_size = size_name;
-        func_it->table_funcs[func_it->size].id = (*id_fun);
-
-        func_it->table_funcs[func_it->size].type = FUNCTION;
-
-        memcpy(func_it->table_funcs[func_it->size].name, name_var, size_name);
-    }
-
-    return NO_ERROR_LANG;
-}
-
-LangError MatchNamesTable(FunctionShell* func_it, char* name_var, size_t* id_var)
-{
-    bool match = false;
-
-    Function* func = &(func_it->funcs[func_it->size]);
-
-    for (size_t i_var = 0; i_var < func->num_names; i_var++)
-    {
-        if (strncmp(name_var, func->vars[i_var].name, func->vars[i_var].name_size) == 0)
-        {
-            match = true;
-            (*id_var) = func->vars[i_var].id;
-            return NO_ERROR_LANG;
-        }
-    }
-
-    if (func_it->size == 0)
-    {
-        func_it->funcs[func_it->size].offset = 0;
-    }
-    if (func_it->size != 0)
-    {
-        func_it->funcs[func_it->size].offset = func_it->funcs[func_it->size - 1].num_names + func_it->funcs[func_it->size - 1].offset;
-    }
-
-    if (match == false)
-    {
-        size_t size_name = strlen(name_var);
-
-        (*id_var) = func->num_names + func_it->funcs[func_it->size].offset;
-
-        func->vars[func->num_names].id = (*id_var);
-        func->vars[func->num_names].type = VARIABLE;
-        func->vars[func->num_names].name_size = size_name;
-
-        memcpy(func->vars[func->num_names].name, name_var, size_name);
-        (func->num_names)++;
-    }
-
-    return NO_ERROR_LANG;
-}
-
-LangError TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_name)
+int TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_name)
 {
     size_t i = 0;
     while (var[i] != 0)
@@ -340,120 +238,222 @@ LangError TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_nam
     }
     (*size_name) = i;
 
-    return NO_ERROR_LANG;
+    return 0;
 }
 
 
-LangError ParseLanguageOperators(Tokens* tkns, Text* buf)
+
+
+
+
+
+
+// int MatchFuncNamesTable(Function* funcs, char* name_var, size_t* id_fun)
+// {
+//     bool match = false;
+
+//     for (size_t i_func = 0; i_func < func_it->size; i_func++)
+//     {
+//         if (strncmp(name_var, func_it->table_funcs[i_func].name, func_it->table_funcs[i_func].name_size) == 0)
+//         {
+//             match = true;
+//             (*id_fun) = func_it->table_funcs[i_func].id;
+//             return 0;
+//         }
+//     }
+    
+//     if (match == false)
+//     {
+//         size_t size_name = strlen(name_var);
+
+//         (*id_fun) = func_it->size;
+
+//         func_it->table_funcs[func_it->size].name_size = size_name;
+//         func_it->table_funcs[func_it->size].id = (*id_fun);
+
+//         func_it->table_funcs[func_it->size].type = FUNCTION;
+
+//         memcpy(func_it->table_funcs[func_it->size].name, name_var, size_name);
+//     }
+
+//     return 0;
+// }
+
+// int MatchNamesTable(Function* funcs, char* name_var, size_t* id_var)
+// {
+//     bool match = false;
+
+//     Function* func = &(func_it->funcs[func_it->size]);
+
+//     for (size_t i_var = 0; i_var < func->num_names; i_var++)
+//     {
+//         if (strncmp(name_var, func->vars[i_var].name, func->vars[i_var].name_size) == 0)
+//         {
+//             match = true;
+//             (*id_var) = func->vars[i_var].id;
+//             return 0;
+//         }
+//     }
+
+//     if (func_it->size == 0)
+//     {
+//         func_it->funcs[func_it->size].offset = 0;
+//     }
+//     if (func_it->size != 0)
+//     {
+//         func_it->funcs[func_it->size].offset = func_it->funcs[func_it->size - 1].num_names + func_it->funcs[func_it->size - 1].offset;
+//     }
+
+//     if (match == false)
+//     {
+//         size_t size_name = strlen(name_var);
+
+//         (*id_var) = func->num_names + func_it->funcs[func_it->size].offset;
+
+//         func->vars[func->num_names].id = (*id_var);
+//         func->vars[func->num_names].type = VARIABLE;
+//         func->vars[func->num_names].name_size = size_name;
+
+//         memcpy(func->vars[func->num_names].name, name_var, size_name);
+//         (func->num_names)++;
+//     }
+
+//     return 0;
+// }
+
+
+
+
+
+Node* GetGrammar(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
-    Operators id = NO_OP;
-    size_t offset = 0;
+    size_t i_funcs= 0;
 
-    if (FindCommand(buf, cmds_lang, NUM_LANG_COMMANDS, &id, &offset) == true)
-    {
-        tkns->tokens[tkns->position] = CreateOperator(id, NULL, NULL);
-        tkns->tokens[tkns->position]->text_pos = buf->position;
-        
-        tkns->position++;
-        buf->position += offset;
-    }
-
-    return NO_ERROR_LANG;
-}
-
-LangError ParseBoolOperators(Tokens* tkns, Text* buf)
-{
-    Operators id = NO_OP;
-    size_t offset = 0;
-
-    if (FindCommand(buf, cmds_compare, NUM_COMPARE_COMMANDS, &id, &offset) == true)
-    {
-        tkns->tokens[tkns->position] = CreateOperator(id, NULL, NULL);
-        tkns->tokens[tkns->position]->text_pos = buf->position;
-        
-        tkns->position++;
-        buf->position += offset;
-    }
-
-    return NO_ERROR_LANG;
-}
-
-LangError ParseMathOperators(Tokens* tkns, Text* buf)
-{
-    Operators id = NO_OP;
-    size_t offset = 0;
-
-    if (FindCommand(buf, math_cmds, NUM_MATH_COMMANDS, &id, &offset) == true)
-    {
-        tkns->tokens[tkns->position] = CreateOperator(id, NULL, NULL);
-        tkns->tokens[tkns->position]->text_pos = buf->position;
-        
-        tkns->position++;
-        buf->position += offset;
-    }
-
-    return NO_ERROR_LANG;
-}
-
-Node* GetGrammar(Tokens* tkns, FunctionShell* func_it, LangError* error)
-{
     while (tkns->tokens[tkns->position]->data.id_op == DEFINE)
     {
         (tkns->position)++;
-        CreateNames(&(func_it->funcs[func_it->size].vars));
+        
+        // CreateNames((funcs[i_funcs].vars));
 
-        func_it->funcs[func_it->size].tree.root = GetFunction(tkns, func_it, error);
-        (func_it->size)++;
+        funcs[i_funcs].tree.root = GetFunction(tkns, funcs, err_alloc);
+        i_funcs++;
     }
 
-
-    return func_it->funcs[func_it->size - 1].tree.root;
+    return funcs[i_funcs - 1].tree.root;
 }
 
-Node* GetOperators(Tokens* tkns, FunctionShell* func_it, LangError* error)
+
+
+Node* GetFunction(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
     Node* value_1 = NULL;
 
-    if (tkns->tokens[tkns->position]->type == OPERATOR)
+    if (tkns->tokens[tkns->position]->type == FUNCTION)
     {
-        if ((tkns->tokens[tkns->position]->data.id_op == OP_CONDITION) || (tkns->tokens[tkns->position]->data.id_op == OP_LOOP))
-        {
-            value_1 = GetWhileOrIf(tkns, func_it, error);
-        }
-        else if (tkns->tokens[tkns->position]->data.id_op == RET)
-        {
-            value_1 = GetReturn(tkns, func_it, error);
-        }
-        else if ((tkns->tokens[tkns->position]->data.id_op == INPUT) || (tkns->tokens[tkns->position]->data.id_op == OUTPUT))
-        {
-            value_1 = GetInOutput(tkns, func_it, error);
-        }
+        value_1 = tkns->tokens[tkns->position];
+        size_t id = 0;
+
+        // MatchFuncNamesTable(funcs, value_1->data.name, &id);
+        
+        value_1->data.id_var = id;
+        
+        (tkns->position)++;
     }
-    else if (tkns->tokens[tkns->position]->type == VARIABLE)
+    else
     {
-        value_1 = GetAssign(tkns, func_it, error);
+        ERROR_INSERT("expected function");
+        return NULL;
     }
-    
-    if (value_1)
+
+    value_1->left = GetArgument(tkns, funcs, err_alloc);
+
+    // if (value_1->left == NULL)
+    // {
+    //     ERROR_INSERT("arguments is bad");
+    //     return NULL;
+    // }
+
+    if (tkns->tokens[tkns->position]->data.id_op == L_CURLY_BRACKET)
     {
-        value_1->right = GetOperators(tkns, func_it, error);
+        (tkns->position)++;
+    }
+    else
+    {
+        ERROR_INSERT("expected <{>");
+        return NULL;
+    }
+
+    value_1->right = GetOperators(tkns, funcs, err_alloc);
+
+// if (value_1->right == NULL)
+    // {
+    //     ERROR_INSERT("error in operators");
+    //     return NULL;
+    // }    
+
+    if (tkns->tokens[tkns->position]->data.id_op == R_CURLY_BRACKET)
+    {
+        (tkns->position)++;
+    }
+    else
+    {
+        ERROR_INSERT("expected <}>");
+        return NULL;
     }
 
     return value_1;
 }
 
-Node* GetInOutput(Tokens* tkns, FunctionShell* func_it, LangError* error)
+
+Node* GetOperators(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
-    Node* value_1 = NULL;
+    Node* node_operator = NULL;
+
+    Node* current_token = tkns->tokens[tkns->position];
+
+    if (current_token->type == OPERATOR)
+    {
+        if ((tkns->tokens[tkns->position]->data.id_op == OP_CONDITION) || (tkns->tokens[tkns->position]->data.id_op == OP_LOOP))
+        {
+            node_operator = GetWhileOrIf(tkns, funcs, err_alloc);
+        }
+        else if (tkns->tokens[tkns->position]->data.id_op == RET)
+        {
+            node_operator = GetReturn(tkns, funcs, err_alloc);
+        }
+        else if ((tkns->tokens[tkns->position]->data.id_op == INPUT) || (tkns->tokens[tkns->position]->data.id_op == OUTPUT))
+        {
+            node_operator = GetInOutput(tkns, funcs, err_alloc);
+        }
+    }
+    else if (tkns->tokens[tkns->position]->type == VARIABLE)
+    {
+        node_operator = GetAssign(tkns, funcs, err_alloc);
+    }
+    
+    if (node_operator)
+    {
+        
+        node_operator->right = GetOperators(tkns, funcs, err_alloc);
+
+        // value_1 = GetOperators(tkns, funcs, err_alloc);
+    }
+
+    return node_operator;
+}
+
+Node* GetInOutput(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+{
+    Node* node_in_out = NULL;
 
     if ((tkns->tokens[tkns->position]->data.id_op == INPUT) || (tkns->tokens[tkns->position]->data.id_op == OUTPUT))
     {
-        value_1 = tkns->tokens[tkns->position];
+        node_in_out = tkns->tokens[tkns->position];
         (tkns->position)++;
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected in/out put");
         return NULL;
     }
 
@@ -463,11 +463,11 @@ Node* GetInOutput(Tokens* tkns, FunctionShell* func_it, LangError* error)
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected <(>");
         return NULL;
     }
     
-    value_1->left = GetVariable(tkns, func_it, error);
+    node_in_out->left = GetVariable(tkns, funcs, err_alloc);
 
     if (tkns->tokens[tkns->position]->data.id_op == R_BRACKET)
     {
@@ -475,29 +475,29 @@ Node* GetInOutput(Tokens* tkns, FunctionShell* func_it, LangError* error)
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected <)>");
         return NULL;
     }
 
-    Node* value_2 = NULL;
+    Node* current = NULL;
 
     if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
     {
-        value_2 = tkns->tokens[tkns->position];
+        current = tkns->tokens[tkns->position];
         (tkns->position)++;
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected <;>");
         return NULL;
     }
 
-    value_2->left = value_1;
+    current->left = node_in_out;
 
-    return value_2;
+    return current;
 }
 
-Node* GetArgument(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetArgument(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
     if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
     {
@@ -505,7 +505,7 @@ Node* GetArgument(Tokens* tkns, FunctionShell* func_it, LangError* error)
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected <(>");
         return NULL;
     }
 
@@ -522,12 +522,12 @@ Node* GetArgument(Tokens* tkns, FunctionShell* func_it, LangError* error)
     {
         if (tkns->tokens[tkns->position]->type == VARIABLE)
         {
-            value_2 = GetExpression(tkns, func_it, error);
+            value_2 = GetExpression(tkns, funcs, err_alloc);
         }
         else if (tkns->tokens[tkns->position]->type == OPERATOR)
         {
             if (tkns->tokens[tkns->position]->data.id_op != COMMA)
-                value_2 = GetExpression(tkns, func_it, error);
+                value_2 = GetExpression(tkns, funcs, err_alloc);
         }
         if (tkns->tokens[tkns->position]->data.id_op == COMMA)
         {
@@ -535,7 +535,7 @@ Node* GetArgument(Tokens* tkns, FunctionShell* func_it, LangError* error)
             (tkns->position)++;
 
             value_3->left = value_2;
-            value_3->right = GetExpression(tkns, func_it, error);
+            value_3->right = GetExpression(tkns, funcs, err_alloc);
             
             value_2 = value_3;
         }
@@ -547,64 +547,7 @@ Node* GetArgument(Tokens* tkns, FunctionShell* func_it, LangError* error)
     return value_2;
 }
 
-Node* GetFunction(Tokens* tkns, FunctionShell* func_it, LangError* error)
-{
-    Node* value_1 = NULL;
-
-    if (tkns->tokens[tkns->position]->type == FUNCTION)
-    {
-        value_1 = tkns->tokens[tkns->position];
-        size_t id = 0;
-        MatchFuncNamesTable(func_it, value_1->data.name, &id);
-        
-        value_1->data.id_var = id;
-        
-        (tkns->position)++;
-    }
-    else
-    {
-        (*error) = SYNTAX_ERROR;
-        return NULL;
-    }
-
-    value_1->left = GetArgument(tkns, func_it, error);
-
-    if (tkns->tokens[tkns->position]->data.id_op == L_CURLY_BRACKET)
-    {
-        (tkns->position)++;
-    }
-    else
-    {
-        (*error) = SYNTAX_ERROR;
-        return NULL;
-    }
-
-    value_1->right = GetOperators(tkns, func_it, error);
-
-    if (tkns->tokens[tkns->position]->data.id_op == R_CURLY_BRACKET)
-    {
-        (tkns->position)++;
-    }
-    else
-    {
-        (*error) = SYNTAX_ERROR;
-        return NULL;
-    }
-
-    if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
-    {
-        (tkns->position)++;
-    }
-    else
-    {
-        (*error) = SYNTAX_ERROR;
-        return NULL;
-    }
-
-    return value_1;
-}
-
-Node* GetReturn(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetReturn(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
     Node* value_1 = NULL;
 
@@ -615,11 +558,11 @@ Node* GetReturn(Tokens* tkns, FunctionShell* func_it, LangError* error)
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected ret");
         return NULL;
     }
 
-    value_1->left = GetExpression(tkns, func_it, error); 
+    value_1->left = GetExpression(tkns, funcs, err_alloc); 
 
     if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
     {
@@ -627,17 +570,16 @@ Node* GetReturn(Tokens* tkns, FunctionShell* func_it, LangError* error)
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected <;>");
         return NULL;
     }
 
     return value_1;
 }
 
-Node* GetWhileOrIf(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetWhileOrIf(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
     Node* value_1 = NULL;
-    Node* value_2 = NULL;
     
     if ((tkns->tokens[tkns->position]->data.id_op == OP_CONDITION) || (tkns->tokens[tkns->position]->data.id_op == OP_LOOP))
     {
@@ -646,17 +588,17 @@ Node* GetWhileOrIf(Tokens* tkns, FunctionShell* func_it, LangError* error)
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected if or while");
         return NULL;
     }
 
-    value_1->left = GetBoolPrimaryExpression(tkns, func_it, error);
+    value_1->left = GetBoolPrimaryExpression(tkns, funcs, err_alloc);
     
     if (tkns->tokens[tkns->position]->data.id_op == L_CURLY_BRACKET)
     {
         (tkns->position)++;
         
-        value_1->right = GetOperators(tkns, func_it, error);
+        value_1->right = GetOperators(tkns, funcs, err_alloc);
 
         if (tkns->tokens[tkns->position]->data.id_op == R_CURLY_BRACKET)
         {
@@ -664,34 +606,22 @@ Node* GetWhileOrIf(Tokens* tkns, FunctionShell* func_it, LangError* error)
         }
         else
         {
-            (*error) = SYNTAX_ERROR;
-            return NULL;
-        }
-
-        if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
-        {
-            value_2 = tkns->tokens[tkns->position];
-            value_2->left = value_1;
-            (tkns->position)++;
-        }
-        else
-        {
-            (*error) = SYNTAX_ERROR;
+            ERROR_INSERT("expected <}>");
             return NULL;
         }
     }
     else 
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected <{>");
         return NULL;
     }
 
-    return value_2;
+    return value_1;
 }
 
-Node* GetAssign(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetAssign(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
-    Node* left = GetVariable(tkns, func_it, error);
+    Node* left = GetVariable(tkns, funcs, err_alloc);
     Node* value_1 = NULL;
     
     if (tkns->tokens[tkns->position]->data.id_op == OP_ASSIGN)
@@ -701,11 +631,11 @@ Node* GetAssign(Tokens* tkns, FunctionShell* func_it, LangError* error)
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected <=>");
         return NULL;
     }
 
-    Node* right = GetExpression(tkns, func_it, error);
+    Node* right = GetExpression(tkns, funcs, err_alloc);
     value_1->left = left;
     value_1->right = right;
 
@@ -719,16 +649,16 @@ Node* GetAssign(Tokens* tkns, FunctionShell* func_it, LangError* error)
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected <;>");
         return NULL;
     }
 
     return value_2;
 }
 
-Node* GetExpression(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
-    Node* value_1 = GetTerm(tkns, func_it, error);
+    Node* value_1 = GetTerm(tkns, funcs, err_alloc);
     Node* value_3 = NULL;
 
     if (tkns->tokens[tkns->position]->type == OPERATOR)
@@ -738,7 +668,7 @@ Node* GetExpression(Tokens* tkns, FunctionShell* func_it, LangError* error)
             value_3 = tkns->tokens[tkns->position];
             tkns->position++;
             
-            Node* value_2 = GetTerm(tkns, func_it, error);
+            Node* value_2 = GetTerm(tkns, funcs, err_alloc);
             
             value_3->left = value_1;
             value_3->right = value_2;
@@ -750,9 +680,9 @@ Node* GetExpression(Tokens* tkns, FunctionShell* func_it, LangError* error)
     return value_1;
 }
 
-Node* GetTerm(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetTerm(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
-    Node* value_1 = GetUnary(tkns, func_it, error);
+    Node* value_1 = GetUnary(tkns, funcs, err_alloc);
     
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
@@ -761,7 +691,7 @@ Node* GetTerm(Tokens* tkns, FunctionShell* func_it, LangError* error)
             Node* value_3 = tkns->tokens[tkns->position];
             tkns->position++;
             
-            Node* value_2 = GetUnary(tkns, func_it, error);
+            Node* value_2 = GetUnary(tkns, funcs, err_alloc);
             value_3->left = value_1;
             value_3->right = value_2;
             
@@ -772,7 +702,7 @@ Node* GetTerm(Tokens* tkns, FunctionShell* func_it, LangError* error)
     return value_1;
 }
 
-Node* GetUnary(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetUnary(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
     Node* value_1 = NULL;
     if (tkns->tokens[tkns->position]->type == OPERATOR)
@@ -783,7 +713,7 @@ Node* GetUnary(Tokens* tkns, FunctionShell* func_it, LangError* error)
             {
                 value_1 = tkns->tokens[tkns->position];
                 tkns->position++;
-                Node* value_2 = GetPrimaryExpression(tkns, func_it, error);
+                Node* value_2 = GetPrimaryExpression(tkns, funcs, err_alloc);
 
                 value_1->right = value_2;
             }
@@ -792,14 +722,14 @@ Node* GetUnary(Tokens* tkns, FunctionShell* func_it, LangError* error)
     
     if (value_1 == NULL)
     {
-        value_1 = GetPrimaryExpression(tkns, func_it, error);
+        value_1 = GetPrimaryExpression(tkns, funcs, err_alloc);
     }
     return value_1;
 }
 
-Node* GetBoolingExpression(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetBoolingExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
-    Node* value_1 = GetExpression(tkns, func_it, error);
+    Node* value_1 = GetExpression(tkns, funcs, err_alloc);
     Node* value_3 = NULL;
 
     if (tkns->tokens[tkns->position]->type == OPERATOR)
@@ -809,7 +739,7 @@ Node* GetBoolingExpression(Tokens* tkns, FunctionShell* func_it, LangError* erro
             value_3 = tkns->tokens[tkns->position];
             tkns->position++;
             
-            Node* value_2 = GetExpression(tkns, func_it, error);
+            Node* value_2 = GetExpression(tkns, funcs, err_alloc);
             
             value_3->left = value_1;
             value_3->right = value_2;
@@ -821,14 +751,14 @@ Node* GetBoolingExpression(Tokens* tkns, FunctionShell* func_it, LangError* erro
     return value_1;
 }
 
-Node* GetBoolPrimaryExpression(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetBoolPrimaryExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
         if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
         {
             tkns->position++;
-            Node* val = GetBoolingExpression(tkns, func_it, error);
+            Node* val = GetBoolingExpression(tkns, funcs, err_alloc);
             if (tkns->tokens[tkns->position]->data.id_op == R_BRACKET)
                 tkns->position++;
             else
@@ -838,17 +768,17 @@ Node* GetBoolPrimaryExpression(Tokens* tkns, FunctionShell* func_it, LangError* 
         }
     }
 
-    return GetVariable(tkns, func_it, error);
+    return GetVariable(tkns, funcs, err_alloc);
 }
 
-Node* GetPrimaryExpression(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetPrimaryExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
         if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
         {
             tkns->position++;
-            Node* val = GetExpression(tkns, func_it, error);
+            Node* val = GetExpression(tkns, funcs, err_alloc);
             if (tkns->tokens[tkns->position]->data.id_op == R_BRACKET)
                 tkns->position++;
             else
@@ -857,39 +787,42 @@ Node* GetPrimaryExpression(Tokens* tkns, FunctionShell* func_it, LangError* erro
             return val;
         }
     }
-    return GetVariable(tkns, func_it, error);
+    return GetVariable(tkns, funcs, err_alloc);
 }
 
-Node* GetVariable(Tokens* tkns, FunctionShell* func_it, LangError* error)
+Node* GetVariable(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 {
     if (tkns->tokens[tkns->position]->type == VARIABLE)
     {
         Node* var = tkns->tokens[tkns->position];
         (tkns->position)++;
 
-        size_t id = 0;
+        // size_t id = 0;
 
         if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
-        {   
-            var->type = FUNCTION;
-            MatchFuncNamesTable(func_it, var->data.name, &id);
-            var->data.id_fun = id;
-        }
-        else
         {
-            MatchNamesTable(func_it, var->data.name, &id);
-            var->data.id_var = id;
+            var->type = FUNCTION;
+            var->left = GetArgument(tkns, funcs, err_alloc);
         }
 
-        var->left = GetArgument(tkns, func_it, error);
+            // MatchFuncNamesTable(func_it, var->data.name, &id);
+            // var->data.id_fun = id;
+            // }
+        // else
+        // {
+        //     // MatchNamesTable(func_it, var->data.name, &id);
+        //     // var->data.id_var = id;
+        // }
+
+        // var->left = GetArgument(tkns, funcs, err_alloc);
 
         return var;
     }
     
-    return GetNumber(tkns, error);
+    return GetNumber(tkns, err_alloc);
 }
 
-Node* GetNumber(Tokens* tkns, LangError* error)
+Node* GetNumber(Tokens* tkns, err_allocator* err_alloc)
 {
     if (tkns->tokens[tkns->position]->type == NUMBER)
     {
@@ -899,7 +832,7 @@ Node* GetNumber(Tokens* tkns, LangError* error)
     }
     else
     {
-        (*error) = SYNTAX_ERROR;
+        ERROR_INSERT("expected number");
         return NULL;
     }
 

@@ -52,8 +52,7 @@ enum Type
     NUMBER = 1,
     OPERATOR,
     VARIABLE,
-    FUNCTION,
-    KEY_WORD
+    FUNCTION
 };
 
 enum Operators
@@ -117,7 +116,7 @@ struct Tree
 };
 
 Tree* ConstructorTree();
-void       DestructorTree(Tree* tree);
+void  DestructorTree(Tree* tree);
 
 void DestructorTrees(Tree** trees, size_t num_trees);
 
