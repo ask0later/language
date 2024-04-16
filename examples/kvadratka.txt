@@ -2,25 +2,25 @@ handing over to you |.-.. .. -. . | (|-...| , |-.-.|)
 {
     |-.--| encoding matches |-----| - |-.-.| / |-...| ;
     out |-.--| ;
-};
+}
 
 handing over to you |-.. .. ... -.-. .-.| (|.-| , |-...| , |-.-.|)
 {
     |-..| encoding matches ((|-...| * |-...|) - (|....-| * |.-| * |-.-.|)) ;
-    out |-..| ;
-};
+    out |-..|;
+}
 
 handing over to you |..-. .-. --- --- - | (|.-| , |-...|, |-..|)
 {
     |-.--| encoding matches (((|-----| - |-...|) + (sqrt(|-..|))) / (|..---| * |.-|));
     out |-.--| ;
-};
+}
 
 handing over to you |... .-. --- --- -| (|.-| , |-...|, |-..|)
 {
     |-.--| encoding matches (((|-----| - |-...|) - (sqrt(|-..|))) / (|..---| * |.-|));
     out |-.--| ;
-};
+}
 
 handing over to you |-- .- .. -. | ()
 {
@@ -76,4 +76,4 @@ handing over to you |-- .- .. -. | ()
             get the message (|-.--|);
         };
     };
-};
+}

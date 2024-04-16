@@ -38,6 +38,8 @@ void PrintFunction(Node* node, FILE* To)
 
 void PrintOperators(Node* node, FILE* To)
 {
+    /// TODO: operands[node->op].name ?
+    
     if (!node) {return;}
 
     if (node->type == OPERATOR)
@@ -209,15 +211,16 @@ void GetDigitsArray(int num, size_t* digits_num, int* digits_array)
 
     return;
 }
+
 void PrintBoolExpression(Node* node, FILE* To)
 {
     PrintExpression(node->left, To);
 
-    for (size_t i = 0; i < NUM_COMPARE_COMMANDS; i++)
-    {
-        if (cmds_compare[i].id == node->data.id_op)
-            fprintf(To, " %s ", cmds_compare[i].name);
-    }
+    // for (size_t i = 0; i < sizeof(cmds_compare) / sizeof(Command); i++)
+    // {
+    //     if (cmds_compare[i].id == node->data.id_op)
+    //         fprintf(To, " %s ", cmds_compare[i].name);
+    // }
 
     PrintExpression(node->right, To);
 }
@@ -230,7 +233,7 @@ void PrintExpression(Node* node, FILE* To)
     {
         PrintExpression(node->left, To);
         
-        for (size_t i = 0; i < NUM_OPERATORS; i++)
+        for (size_t i = 0; i < sizeof(operators) / sizeof(Command); i++)
         {
             if (operators[i].id == node->data.id_op)
                 fprintf(To, " %s ", operators[i].name);

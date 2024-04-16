@@ -1,11 +1,11 @@
 digraph DotGraph
 {
-    Node16 [shape="box", color="black", fontcolor="black", fillcolor="#735499", style="filled", weight="1", label="fun_0"];
+    Node16 [shape="box", color="black", fontcolor="black", fillcolor="#735499", style="filled", weight="1", label="func_0"];
     Node80 [shape="box", color="black", fontcolor="black", fillcolor="#21C912", style="filled", weight="1", label="var_0"];
     Node16 -> Node80 [color="black", style="solid", weight="1", label=""];
     Node144 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" ; "];
     Node208 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" if "];
-    Node272 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" == "];
+    Node272 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" = "];
     Node336 [shape="box", color="black", fontcolor="black", fillcolor="#21C912", style="filled", weight="1", label="var_0"];
     Node272 -> Node336 [color="black", style="solid", weight="1", label=""];
     Node400 [shape="box", color="black", fontcolor="black", fillcolor="#7BF2DA", style="filled", weight="1", label="0"];
@@ -18,7 +18,7 @@ digraph DotGraph
     Node144 -> Node208 [color="black", style="solid", weight="1", label=""];
     Node592 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" ; "];
     Node656 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" if "];
-    Node720 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" == "];
+    Node720 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" = "];
     Node784 [shape="box", color="black", fontcolor="black", fillcolor="#21C912", style="filled", weight="1", label="var_0"];
     Node720 -> Node784 [color="black", style="solid", weight="1", label=""];
     Node848 [shape="box", color="black", fontcolor="black", fillcolor="#7BF2DA", style="filled", weight="1", label="1"];
@@ -33,7 +33,7 @@ digraph DotGraph
     Node1104 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" * "];
     Node1168 [shape="box", color="black", fontcolor="black", fillcolor="#21C912", style="filled", weight="1", label="var_0"];
     Node1104 -> Node1168 [color="black", style="solid", weight="1", label=""];
-    Node1232 [shape="box", color="black", fontcolor="black", fillcolor="#735499", style="filled", weight="1", label="fun_0"];
+    Node1232 [shape="box", color="black", fontcolor="black", fillcolor="#735499", style="filled", weight="1", label="func_0"];
     Node1296 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" - "];
     Node1360 [shape="box", color="black", fontcolor="black", fillcolor="#21C912", style="filled", weight="1", label="var_0"];
     Node1296 -> Node1360 [color="black", style="solid", weight="1", label=""];
@@ -45,7 +45,7 @@ digraph DotGraph
     Node592 -> Node1040 [color="black", style="solid", weight="1", label=""];
     Node144 -> Node592 [color="black", style="solid", weight="1", label=""];
     Node16 -> Node144 [color="black", style="solid", weight="1", label=""];
-    Node1488 [shape="box", color="black", fontcolor="black", fillcolor="#735499", style="filled", weight="1", label="fun_1"];
+    Node1488 [shape="box", color="black", fontcolor="black", fillcolor="#735499", style="filled", weight="1", label="func_1"];
     Node1552 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" ; "];
     Node1616 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" input "];
     Node1680 [shape="box", color="black", fontcolor="black", fillcolor="#21C912", style="filled", weight="1", label="var_1"];
@@ -55,7 +55,7 @@ digraph DotGraph
     Node1808 [shape="box", color="black", fontcolor="black", fillcolor="#EE204D", style="filled", weight="1", label=" = "];
     Node1872 [shape="box", color="black", fontcolor="black", fillcolor="#21C912", style="filled", weight="1", label="var_2"];
     Node1808 -> Node1872 [color="black", style="solid", weight="1", label=""];
-    Node1936 [shape="box", color="black", fontcolor="black", fillcolor="#735499", style="filled", weight="1", label="fun_0"];
+    Node1936 [shape="box", color="black", fontcolor="black", fillcolor="#735499", style="filled", weight="1", label="func_0"];
     Node2000 [shape="box", color="black", fontcolor="black", fillcolor="#21C912", style="filled", weight="1", label="var_1"];
     Node1936 -> Node2000 [color="black", style="solid", weight="1", label=""];
     Node1808 -> Node1936 [color="black", style="solid", weight="1", label=""];

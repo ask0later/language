@@ -109,7 +109,7 @@ TreeError RemoveDummyElements(Tree* tree, Node** node)
 
         if (check == true)
         {
-            copy_node = Copynator((*node)->left);
+            copy_node = Copy((*node)->left);
             tree->changes_num++;
             DeleteNode(*node);
             *node = copy_node;
@@ -133,7 +133,7 @@ TreeError RemoveDummyElements(Tree* tree, Node** node)
 
         if (check == true)
         {
-            copy_node = Copynator((*node)->right);
+            copy_node = Copy((*node)->right);
             tree->changes_num++;
             DeleteNode(*node);
             *node = copy_node;

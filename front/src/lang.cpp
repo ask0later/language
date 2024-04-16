@@ -1,46 +1,65 @@
 #include "lang.h"
 #include "operators.h"
 #include "error_allocator.h"
+#include "tree.h"
+#include "operators.h"
 
 
-int CreateNames(Name** name)
+int CtorFunctions(Function** funcs, err_allocator* err_alloc)
 {
-    (*name) = (Name*) calloc(MAX_NUM_NAMES, sizeof(Name));
+    (*funcs) = (Function*) calloc(MAX_NUM_FUNCTIONS, sizeof(Function));
+    if ((*funcs) == NULL)
+    {
+        INSERT_ERROR_NODE(err_alloc, "dynamic allocation is fault");
+        err_alloc->need_call = true;
+        return 1;
+    }
+
+    for (size_t i = 0; i < MAX_NUM_FUNCTIONS; i++)
+    {
+        (*funcs)[i].vars = (Name*) calloc(MAX_NUM_NAMES, sizeof(Name));
+        if ((*funcs)[i].vars == NULL)
+        {
+            INSERT_ERROR_NODE(err_alloc, "dynamic allocation is fault");
+            err_alloc->need_call = true;
+            return 1;
+        }
+    }
+    
+    return 0;
+}
+
+int DtorFunctions(Function** funcs)
+{
+    for(size_t i = 0; i < MAX_NUM_FUNCTIONS; i++)
+    {
+        free((*funcs)[i].vars);
+    }
+    
+    free(*funcs);
 
     return 0;
 }
 
-int DeleteNames(Name** name)
-{
-    free(*name);
-
-    return 0;
-}
-
-void DeleteToken(Node* node)
-{
-    free(node);
-    return;
-}
-
-int ConstructorTokens(Tokens* tkns, Text* buf, err_allocator* err_alloc)
+int CtorTokens(Tokens* tkns, Text* buf, err_allocator* err_alloc)
 {
     tkns->size = buf->size_buffer;
     tkns->position = 0;
     tkns->tokens = (Node**) calloc(tkns->size, sizeof(Node*));
     if (!tkns->tokens)
     {
-        ERROR_INSERT("dynamic allocation is fault");
+        INSERT_ERROR_NODE(err_alloc, "dynamic allocation is fault");
+        err_alloc->need_call = true;
         return 1;
     }
     
     return 0;
 }
 
-int DestructorTokens(Tokens* tkns)
+int DtorTokens(Tokens* tkns)
 {
     for (size_t i = 0; i < tkns->size; i++)
-        DeleteToken(tkns->tokens[i]);
+        free(tkns->tokens[i]);
 
     tkns->size = (size_t) INT_MAX;
     tkns->position = (size_t) INT_MAX;
@@ -49,26 +68,36 @@ int DestructorTokens(Tokens* tkns)
     return 0;
 }
 
-void SkipSpaces(Text* buf)
+static void SkipSpaces(Text* buf)
 {
     while (isspace(buf->str[buf->position]))
         buf->position++;
 }
 
-
-
-int CreateTokens(Tokens* tkns, Text* buf, err_allocator* err_alloc)
+int CompleteTokens(Tokens* tkns, Text* buf, err_allocator* err_alloc)
 {
+    size_t old_position = 0;
+
     while (buf->str[buf->position] != '\0')
     {
+        old_position = buf->position;
         SkipSpaces(buf);
         
         if (buf->position == buf->size_buffer)
-            return 0;
+            break;
 
         ParseOperator(tkns, buf);
         
-        ParseNameOrNumber(tkns, buf);
+        ParseNameOrNumber(tkns, buf, err_alloc);
+
+        if (old_position == buf->position)
+        {
+            tkns->tokens[tkns->position] = CreateOperator(NO_OP, NULL, NULL);
+            tkns->tokens[tkns->position]->text_pos = buf->position;
+            INSERT_ERROR_NODE(err_alloc, "unknown instruction or operator");
+            err_alloc->need_call = true;
+            return 1;
+        }
     }
 
     tkns->tokens[tkns->position] = CreateOperator(END, NULL, NULL);
@@ -82,7 +111,8 @@ int CreateTokens(Tokens* tkns, Text* buf, err_allocator* err_alloc)
 
     if (ptr == NULL) 
     {
-        ERROR_INSERT("dynamic allocation is fault (realloc)");
+        INSERT_ERROR_NODE(err_alloc, "dynamic allocation is fault (realloc)");
+        err_alloc->need_call = true;
         return 1;
     }
 
@@ -95,9 +125,13 @@ int CreateTokens(Tokens* tkns, Text* buf, err_allocator* err_alloc)
 
 int ParseOperator(Tokens* tkns, Text* buf)
 {
-    for (size_t i = 0; i < COMMAND_NUM; i++)
-    {
-        if (strncmp(buf->str + buf->position, language_cmds[i].name, language_cmds[i].size_name) == 0)
+    for (size_t i = 0; i < sizeof(language_cmds) / sizeof(Command); i++)
+    {   
+        if (language_cmds[i].size_name == 0)
+        {
+            /*DO NOTHING*/
+        }
+        else if (strncmp(buf->str + buf->position, language_cmds[i].name, language_cmds[i].size_name) == 0)
         {
             tkns->tokens[tkns->position] = CreateOperator(language_cmds[i].id, NULL, NULL);
             tkns->tokens[tkns->position]->text_pos = buf->position;
@@ -112,18 +146,23 @@ int ParseOperator(Tokens* tkns, Text* buf)
 }
 
 
-int ParseNameOrNumber(Tokens* tkns, Text* buf)
+int ParseNameOrNumber(Tokens* tkns, Text* buf, err_allocator* err_alloc)
 {
     if (buf->str[buf->position] == '|')
     {
         (buf->position)++;
 
-        MorseAlhabet morse_word[SIZE_SYMBOLS] = {};
+        MorseAlhabet morse_word[MAX_SIZE_NAME] = {};
 
         size_t i_vars = 0;
         size_t text_pos = buf->position - 1;
         
-        ReadMorseCode(morse_word, &i_vars, buf);
+        if (ReadMorseCode(morse_word, &i_vars, buf) != 0)
+        {
+            err_alloc->need_call = true;
+            INSERT_ERROR_NODE(err_alloc, "invalid executing ReadMorseCode");
+            return 1;
+        }
         
         double value = 0;
 
@@ -131,7 +170,14 @@ int ParseNameOrNumber(Tokens* tkns, Text* buf)
         {
             char name_var[MAX_SIZE_NAME] = {};
             size_t size_name = 0;
-            TranslateMorseCode(name_var, morse_word, &size_name);
+            
+
+            if (TranslateMorseCode(name_var, morse_word, &size_name) != 0)
+            {
+                err_alloc->need_call = true;
+                INSERT_ERROR_NODE(err_alloc, "invalid executing ReadMorseCode");
+                return 1;
+            }
 
             size_t id_name = 0;
 
@@ -154,7 +200,8 @@ int ParseNameOrNumber(Tokens* tkns, Text* buf)
         {
             if ((morse_word[i] - MORSE_0) > 10)
             {
-                //ERROR_INSERT("syntax error");
+                err_alloc->need_call = true;
+                INSERT_ERROR_NODE(err_alloc, "syntax error");
                 return 1;
             }
             value = 10 * value + (double)(morse_word[i] - MORSE_0);
@@ -204,11 +251,15 @@ int ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf)
 
         if (buf->str[buf->position] == ' ')
         {
-            FindSymbol(var, morse_alnum, NUM_ALNUM, &id);
+            FindSymbol(var, morse_alnum, sizeof(morse_alnum) / sizeof(MorseAlpha), &id);
     
             id_value[*i_vars] = id;
 
             (*i_vars)++;
+
+            if (*i_vars == MAX_SIZE_NAME) 
+                return 1;
+
             memset(var, 0, SIZE_MORSE_SYMBOL);
             i_var = 0;
             buf->position++;
@@ -217,7 +268,8 @@ int ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf)
 
     if (i_var != 0)
     {
-        FindSymbol(var, morse_alnum, NUM_ALNUM, &id);
+        FindSymbol(var, morse_alnum, sizeof(morse_alnum) / sizeof(MorseAlpha), &id);
+
         id_value[*i_vars] = id;
         (*i_vars)++;
     }
@@ -235,8 +287,42 @@ int TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_name)
     {
         name_var[i] = var[i];
         i++;
+        if (i == MAX_SIZE_NAME)
+            return 1;
     }
     (*size_name) = i;
+
+    return 0;
+}
+
+
+int MatchNamesTable(Function* func, char* name_var, size_t* id_var)
+{
+    bool match = false;
+
+    for (size_t i_var = 0; i_var < func->num_names; i_var++)
+    {
+        if (strncmp(name_var, func->vars[i_var].name, func->vars[i_var].name_size) == 0)
+        {
+            match = true;
+            (*id_var) = func->vars[i_var].id;
+            return 0;
+        }
+    }
+
+    if (match == false)
+    {
+        size_t size_name = strlen(name_var);
+
+        (*id_var) = func->num_names; //+ func_it->funcs[func_it->size].offset;
+
+        func->vars[func->num_names].id = (*id_var);
+        func->vars[func->num_names].type = VARIABLE;
+        func->vars[func->num_names].name_size = size_name;
+
+        memcpy(func->vars[func->num_names].name, name_var, size_name);
+        (func->num_names)++;
+    }
 
     return 0;
 }
@@ -245,133 +331,54 @@ int TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_name)
 
 
 
-
-
-
-// int MatchFuncNamesTable(Function* funcs, char* name_var, size_t* id_fun)
-// {
-//     bool match = false;
-
-//     for (size_t i_func = 0; i_func < func_it->size; i_func++)
-//     {
-//         if (strncmp(name_var, func_it->table_funcs[i_func].name, func_it->table_funcs[i_func].name_size) == 0)
-//         {
-//             match = true;
-//             (*id_fun) = func_it->table_funcs[i_func].id;
-//             return 0;
-//         }
-//     }
-    
-//     if (match == false)
-//     {
-//         size_t size_name = strlen(name_var);
-
-//         (*id_fun) = func_it->size;
-
-//         func_it->table_funcs[func_it->size].name_size = size_name;
-//         func_it->table_funcs[func_it->size].id = (*id_fun);
-
-//         func_it->table_funcs[func_it->size].type = FUNCTION;
-
-//         memcpy(func_it->table_funcs[func_it->size].name, name_var, size_name);
-//     }
-
-//     return 0;
-// }
-
-// int MatchNamesTable(Function* funcs, char* name_var, size_t* id_var)
-// {
-//     bool match = false;
-
-//     Function* func = &(func_it->funcs[func_it->size]);
-
-//     for (size_t i_var = 0; i_var < func->num_names; i_var++)
-//     {
-//         if (strncmp(name_var, func->vars[i_var].name, func->vars[i_var].name_size) == 0)
-//         {
-//             match = true;
-//             (*id_var) = func->vars[i_var].id;
-//             return 0;
-//         }
-//     }
-
-//     if (func_it->size == 0)
-//     {
-//         func_it->funcs[func_it->size].offset = 0;
-//     }
-//     if (func_it->size != 0)
-//     {
-//         func_it->funcs[func_it->size].offset = func_it->funcs[func_it->size - 1].num_names + func_it->funcs[func_it->size - 1].offset;
-//     }
-
-//     if (match == false)
-//     {
-//         size_t size_name = strlen(name_var);
-
-//         (*id_var) = func->num_names + func_it->funcs[func_it->size].offset;
-
-//         func->vars[func->num_names].id = (*id_var);
-//         func->vars[func->num_names].type = VARIABLE;
-//         func->vars[func->num_names].name_size = size_name;
-
-//         memcpy(func->vars[func->num_names].name, name_var, size_name);
-//         (func->num_names)++;
-//     }
-
-//     return 0;
-// }
-
-
-
-
-
-Node* GetGrammar(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetGrammar(Tokens* tkns, Function** funcs, size_t* index_func, err_allocator* err_alloc)
 {
-    size_t i_funcs= 0;
-
     while (tkns->tokens[tkns->position]->data.id_op == DEFINE)
     {
         (tkns->position)++;
         
-        // CreateNames((funcs[i_funcs].vars));
+        (*funcs)[*index_func].tree.root = GetFunction(tkns, funcs, *index_func, err_alloc);
 
-        funcs[i_funcs].tree.root = GetFunction(tkns, funcs, err_alloc);
-        i_funcs++;
+        if ((*funcs)[*index_func].tree.root == NULL || err_alloc->need_call == true)
+        {
+            INSERT_ERROR_NODE(err_alloc, "function parsing is failed");
+            err_alloc->need_call = true;
+            return NULL; 
+        }
+
+        (*index_func)++;
     }
 
-    return funcs[i_funcs - 1].tree.root;
+    return (*funcs)[*index_func - 1].tree.root;
 }
 
 
-
-Node* GetFunction(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetFunction(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
     Node* value_1 = NULL;
 
     if (tkns->tokens[tkns->position]->type == FUNCTION)
     {
         value_1 = tkns->tokens[tkns->position];
-        size_t id = 0;
-
-        // MatchFuncNamesTable(funcs, value_1->data.name, &id);
+        memcpy((*funcs)[index_func].name, value_1->data.name, strlen(value_1->data.name) + 1);
         
-        value_1->data.id_var = id;
+        value_1->data.id_var = index_func;
         
         (tkns->position)++;
     }
     else
     {
-        ERROR_INSERT("expected function");
+        INSERT_ERROR_NODE(err_alloc, "expected function");
+        err_alloc->need_call = true;
         return NULL;
     }
 
-    value_1->left = GetArgument(tkns, funcs, err_alloc);
-
-    // if (value_1->left == NULL)
-    // {
-    //     ERROR_INSERT("arguments is bad");
-    //     return NULL;
-    // }
+    value_1->left = GetArgument(tkns, funcs, index_func, err_alloc);
+    if (err_alloc->need_call == true)
+    {
+        INSERT_ERROR_NODE(err_alloc, "invalid executing GetArgument");
+        return NULL;
+    }    
 
     if (tkns->tokens[tkns->position]->data.id_op == L_CURLY_BRACKET)
     {
@@ -379,15 +386,16 @@ Node* GetFunction(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     }
     else
     {
-        ERROR_INSERT("expected <{>");
+        INSERT_ERROR_NODE(err_alloc, "expected <{>");
+        err_alloc->need_call = true;
         return NULL;
     }
 
-    value_1->right = GetOperators(tkns, funcs, err_alloc);
+    value_1->right = GetOperators(tkns, funcs, index_func, err_alloc);
 
-// if (value_1->right == NULL)
+    // if (err_alloc->need_call == true)
     // {
-    //     ERROR_INSERT("error in operators");
+    //     INSERT_ERROR_NODE(err_alloc, "invalid executing GetOperators");
     //     return NULL;
     // }    
 
@@ -397,7 +405,7 @@ Node* GetFunction(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     }
     else
     {
-        ERROR_INSERT("expected <}>");
+        INSERT_ERROR_NODE(err_alloc, "expected <}>");
         return NULL;
     }
 
@@ -405,7 +413,7 @@ Node* GetFunction(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
 }
 
 
-Node* GetOperators(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetOperators(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
     Node* node_operator = NULL;
 
@@ -415,34 +423,31 @@ Node* GetOperators(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     {
         if ((tkns->tokens[tkns->position]->data.id_op == OP_CONDITION) || (tkns->tokens[tkns->position]->data.id_op == OP_LOOP))
         {
-            node_operator = GetWhileOrIf(tkns, funcs, err_alloc);
+            node_operator = GetWhileOrIf(tkns, funcs, index_func, err_alloc);
         }
         else if (tkns->tokens[tkns->position]->data.id_op == RET)
         {
-            node_operator = GetReturn(tkns, funcs, err_alloc);
+            node_operator = GetReturn(tkns, funcs, index_func, err_alloc);
         }
         else if ((tkns->tokens[tkns->position]->data.id_op == INPUT) || (tkns->tokens[tkns->position]->data.id_op == OUTPUT))
         {
-            node_operator = GetInOutput(tkns, funcs, err_alloc);
+            node_operator = GetInOutput(tkns, funcs, index_func, err_alloc);
         }
     }
     else if (tkns->tokens[tkns->position]->type == VARIABLE)
     {
-        node_operator = GetAssign(tkns, funcs, err_alloc);
+        node_operator = GetAssign(tkns, funcs, index_func, err_alloc);
     }
     
     if (node_operator)
     {
-        
-        node_operator->right = GetOperators(tkns, funcs, err_alloc);
-
-        // value_1 = GetOperators(tkns, funcs, err_alloc);
+        node_operator->right = GetOperators(tkns, funcs, index_func, err_alloc);
     }
 
     return node_operator;
 }
 
-Node* GetInOutput(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetInOutput(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
     Node* node_in_out = NULL;
 
@@ -453,7 +458,8 @@ Node* GetInOutput(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     }
     else
     {
-        ERROR_INSERT("expected in/out put");
+        INSERT_ERROR_NODE(err_alloc, "expected in/out put");
+        err_alloc->need_call = true;
         return NULL;
     }
 
@@ -463,11 +469,12 @@ Node* GetInOutput(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     }
     else
     {
-        ERROR_INSERT("expected <(>");
+        INSERT_ERROR_NODE(err_alloc, "expected <(>");
+        err_alloc->need_call = true;
         return NULL;
     }
     
-    node_in_out->left = GetVariable(tkns, funcs, err_alloc);
+    node_in_out->left = GetVariable(tkns, funcs, index_func, err_alloc);
 
     if (tkns->tokens[tkns->position]->data.id_op == R_BRACKET)
     {
@@ -475,7 +482,8 @@ Node* GetInOutput(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     }
     else
     {
-        ERROR_INSERT("expected <)>");
+        INSERT_ERROR_NODE(err_alloc, "expected <)>");
+        err_alloc->need_call = true;
         return NULL;
     }
 
@@ -488,7 +496,8 @@ Node* GetInOutput(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     }
     else
     {
-        ERROR_INSERT("expected <;>");
+        INSERT_ERROR_NODE(err_alloc, "expected <;>");
+        err_alloc->need_call = true;
         return NULL;
     }
 
@@ -497,7 +506,7 @@ Node* GetInOutput(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     return current;
 }
 
-Node* GetArgument(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetArgument(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
     if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
     {
@@ -505,7 +514,8 @@ Node* GetArgument(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     }
     else
     {
-        ERROR_INSERT("expected <(>");
+        INSERT_ERROR_NODE(err_alloc, "expected <(>");
+        err_alloc->need_call = true;
         return NULL;
     }
 
@@ -515,54 +525,55 @@ Node* GetArgument(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
         return NULL;
     }
 
+    Node* value_1 = NULL;
     Node* value_2 = NULL;
-    Node* value_3 = NULL;
 
     do 
     {
         if (tkns->tokens[tkns->position]->type == VARIABLE)
         {
-            value_2 = GetExpression(tkns, funcs, err_alloc);
+            value_1 = GetExpression(tkns, funcs, index_func, err_alloc);
         }
         else if (tkns->tokens[tkns->position]->type == OPERATOR)
         {
             if (tkns->tokens[tkns->position]->data.id_op != COMMA)
-                value_2 = GetExpression(tkns, funcs, err_alloc);
+                value_1 = GetExpression(tkns, funcs, index_func, err_alloc);
         }
         if (tkns->tokens[tkns->position]->data.id_op == COMMA)
         {
-            value_3 = tkns->tokens[tkns->position];
+            value_2 = tkns->tokens[tkns->position];
             (tkns->position)++;
 
-            value_3->left = value_2;
-            value_3->right = GetExpression(tkns, funcs, err_alloc);
+            value_2->left = value_1;
+            value_2->right = GetExpression(tkns, funcs, index_func, err_alloc);
             
-            value_2 = value_3;
+            value_1 = value_2;
         }
         
     } while ((tkns->tokens[tkns->position]->data.id_op != R_BRACKET));
 
     (tkns->position)++;
 
-    return value_2;
+    return value_1;
 }
 
-Node* GetReturn(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetReturn(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
-    Node* value_1 = NULL;
+    Node* node_ret = NULL;
 
     if (tkns->tokens[tkns->position]->data.id_op == RET)
     {
-        value_1 = tkns->tokens[tkns->position];
+        node_ret = tkns->tokens[tkns->position];
         (tkns->position)++;
     }
     else
     {
-        ERROR_INSERT("expected ret");
+        INSERT_ERROR_NODE(err_alloc, "expected ret");
+        err_alloc->need_call = true;
         return NULL;
     }
 
-    value_1->left = GetExpression(tkns, funcs, err_alloc); 
+    node_ret->left = GetExpression(tkns, funcs, index_func, err_alloc); 
 
     if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
     {
@@ -570,35 +581,39 @@ Node* GetReturn(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     }
     else
     {
-        ERROR_INSERT("expected <;>");
+        INSERT_ERROR_NODE(err_alloc, "expected <;>");
+        
+        err_alloc->need_call = true;
         return NULL;
     }
 
-    return value_1;
+    return node_ret;
 }
 
-Node* GetWhileOrIf(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetWhileOrIf(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
-    Node* value_1 = NULL;
+    Node* node_cond = NULL;
+    Node* next_node = NULL;
     
     if ((tkns->tokens[tkns->position]->data.id_op == OP_CONDITION) || (tkns->tokens[tkns->position]->data.id_op == OP_LOOP))
     {
-        value_1 = tkns->tokens[tkns->position];
+        node_cond = tkns->tokens[tkns->position];
         (tkns->position)++;
     }
     else
     {
-        ERROR_INSERT("expected if or while");
+        INSERT_ERROR_NODE(err_alloc, "expected if or while");
+        err_alloc->need_call = true;
         return NULL;
     }
 
-    value_1->left = GetBoolPrimaryExpression(tkns, funcs, err_alloc);
+    node_cond->left = GetBoolPrimaryExpression(tkns, funcs, index_func, err_alloc);
     
     if (tkns->tokens[tkns->position]->data.id_op == L_CURLY_BRACKET)
     {
         (tkns->position)++;
         
-        value_1->right = GetOperators(tkns, funcs, err_alloc);
+        node_cond->right = GetOperators(tkns, funcs, index_func, err_alloc);
 
         if (tkns->tokens[tkns->position]->data.id_op == R_CURLY_BRACKET)
         {
@@ -606,59 +621,78 @@ Node* GetWhileOrIf(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
         }
         else
         {
-            ERROR_INSERT("expected <}>");
+            INSERT_ERROR_NODE(err_alloc, "expected <}>");
+            err_alloc->need_call = true;
+            return NULL;
+        }
+
+
+        if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
+        {
+            next_node = tkns->tokens[tkns->position];
+            next_node->left = node_cond;
+            (tkns->position)++;
+        }
+        else
+        {
+            INSERT_ERROR_NODE(err_alloc, "expected <;>");
+            err_alloc->need_call = true;
             return NULL;
         }
     }
     else 
     {
-        ERROR_INSERT("expected <{>");
+        INSERT_ERROR_NODE(err_alloc, "expected <{>");
+        err_alloc->need_call = true;
         return NULL;
     }
 
-    return value_1;
+    return next_node;
 }
 
-Node* GetAssign(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetAssign(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
-    Node* left = GetVariable(tkns, funcs, err_alloc);
-    Node* value_1 = NULL;
+    Node* node_var = GetVariable(tkns, funcs, index_func, err_alloc);
+    Node* node_assign  = NULL;
     
     if (tkns->tokens[tkns->position]->data.id_op == OP_ASSIGN)
     {
-        value_1 = tkns->tokens[tkns->position];
+        node_assign = tkns->tokens[tkns->position];
         (tkns->position)++;
     }
     else
     {
-        ERROR_INSERT("expected <=>");
+        INSERT_ERROR_NODE(err_alloc, "expected <=>");
+        err_alloc->need_call = true;
         return NULL;
     }
 
-    Node* right = GetExpression(tkns, funcs, err_alloc);
-    value_1->left = left;
-    value_1->right = right;
+    Node* node_expr = GetExpression(tkns, funcs, index_func, err_alloc);
+    
+    node_assign->left  = node_var;
+    node_assign->right = node_expr;
 
-    Node* value_2 = NULL;
+    Node* current = NULL;
 
     if (tkns->tokens[tkns->position]->data.id_op == SEMICOLON)
     {
-        value_2 = tkns->tokens[tkns->position];
+        current = tkns->tokens[tkns->position];
         (tkns->position)++;
-        value_2->left = value_1;
+        current->left = node_assign;
     }
     else
     {
-        ERROR_INSERT("expected <;>");
+        INSERT_ERROR_NODE(err_alloc, "expected <;>");
+        err_alloc->need_call = true;
         return NULL;
     }
 
-    return value_2;
+    return current;
 }
 
-Node* GetExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetExpression(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
-    Node* value_1 = GetTerm(tkns, funcs, err_alloc);
+    Node* value_1 = GetTerm(tkns, funcs, index_func, err_alloc);
     Node* value_3 = NULL;
 
     if (tkns->tokens[tkns->position]->type == OPERATOR)
@@ -668,7 +702,7 @@ Node* GetExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
             value_3 = tkns->tokens[tkns->position];
             tkns->position++;
             
-            Node* value_2 = GetTerm(tkns, funcs, err_alloc);
+            Node* value_2 = GetTerm(tkns, funcs, index_func, err_alloc);
             
             value_3->left = value_1;
             value_3->right = value_2;
@@ -680,9 +714,9 @@ Node* GetExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     return value_1;
 }
 
-Node* GetTerm(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetTerm(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
-    Node* value_1 = GetUnary(tkns, funcs, err_alloc);
+    Node* value_1 = GetUnary(tkns, funcs, index_func, err_alloc);
     
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
@@ -691,7 +725,7 @@ Node* GetTerm(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
             Node* value_3 = tkns->tokens[tkns->position];
             tkns->position++;
             
-            Node* value_2 = GetUnary(tkns, funcs, err_alloc);
+            Node* value_2 = GetUnary(tkns, funcs, index_func, err_alloc);
             value_3->left = value_1;
             value_3->right = value_2;
             
@@ -702,18 +736,18 @@ Node* GetTerm(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     return value_1;
 }
 
-Node* GetUnary(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetUnary(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
     Node* value_1 = NULL;
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
-        for (size_t i = 0; i < NUM_COMMANDS_U; i++)
+        for (size_t i = 0; i < sizeof(unary_cmds) / sizeof(Command); i++)
         {
-            if (cmdsU[i].id == tkns->tokens[tkns->position]->data.id_op)
+            if (unary_cmds[i].id == tkns->tokens[tkns->position]->data.id_op)
             {
                 value_1 = tkns->tokens[tkns->position];
                 tkns->position++;
-                Node* value_2 = GetPrimaryExpression(tkns, funcs, err_alloc);
+                Node* value_2 = GetPrimaryExpression(tkns, funcs, index_func, err_alloc);
 
                 value_1->right = value_2;
             }
@@ -722,14 +756,14 @@ Node* GetUnary(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
     
     if (value_1 == NULL)
     {
-        value_1 = GetPrimaryExpression(tkns, funcs, err_alloc);
+        value_1 = GetPrimaryExpression(tkns, funcs, index_func, err_alloc);
     }
     return value_1;
 }
 
-Node* GetBoolingExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetBoolingExpression(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
-    Node* value_1 = GetExpression(tkns, funcs, err_alloc);
+    Node* value_1 = GetExpression(tkns, funcs, index_func, err_alloc);
     Node* value_3 = NULL;
 
     if (tkns->tokens[tkns->position]->type == OPERATOR)
@@ -739,7 +773,7 @@ Node* GetBoolingExpression(Tokens* tkns, Function* funcs, err_allocator* err_all
             value_3 = tkns->tokens[tkns->position];
             tkns->position++;
             
-            Node* value_2 = GetExpression(tkns, funcs, err_alloc);
+            Node* value_2 = GetExpression(tkns, funcs, index_func, err_alloc);
             
             value_3->left = value_1;
             value_3->right = value_2;
@@ -751,14 +785,14 @@ Node* GetBoolingExpression(Tokens* tkns, Function* funcs, err_allocator* err_all
     return value_1;
 }
 
-Node* GetBoolPrimaryExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetBoolPrimaryExpression(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
         if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
         {
             tkns->position++;
-            Node* val = GetBoolingExpression(tkns, funcs, err_alloc);
+            Node* val = GetBoolingExpression(tkns, funcs, index_func, err_alloc);
             if (tkns->tokens[tkns->position]->data.id_op == R_BRACKET)
                 tkns->position++;
             else
@@ -768,17 +802,17 @@ Node* GetBoolPrimaryExpression(Tokens* tkns, Function* funcs, err_allocator* err
         }
     }
 
-    return GetVariable(tkns, funcs, err_alloc);
+    return GetVariable(tkns, funcs, index_func, err_alloc);
 }
 
-Node* GetPrimaryExpression(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetPrimaryExpression(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
     if (tkns->tokens[tkns->position]->type == OPERATOR)
     {
         if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
         {
             tkns->position++;
-            Node* val = GetExpression(tkns, funcs, err_alloc);
+            Node* val = GetExpression(tkns, funcs, index_func, err_alloc);
             if (tkns->tokens[tkns->position]->data.id_op == R_BRACKET)
                 tkns->position++;
             else
@@ -787,34 +821,48 @@ Node* GetPrimaryExpression(Tokens* tkns, Function* funcs, err_allocator* err_all
             return val;
         }
     }
-    return GetVariable(tkns, funcs, err_alloc);
+    return GetVariable(tkns, funcs, index_func, err_alloc);
 }
 
-Node* GetVariable(Tokens* tkns, Function* funcs, err_allocator* err_alloc)
+Node* GetVariable(Tokens* tkns, Function** funcs, size_t index_func, err_allocator* err_alloc)
 {
     if (tkns->tokens[tkns->position]->type == VARIABLE)
     {
         Node* var = tkns->tokens[tkns->position];
         (tkns->position)++;
 
-        // size_t id = 0;
+        size_t id = 0;
 
         if (tkns->tokens[tkns->position]->data.id_op == L_BRACKET)
         {
             var->type = FUNCTION;
-            var->left = GetArgument(tkns, funcs, err_alloc);
+            var->left = GetArgument(tkns, funcs, index_func, err_alloc);
+            
+            bool match = false;
+
+            for (size_t i = 0; i < index_func + 1; i++)
+            {
+                if (strncmp((*funcs)[i].name, var->data.name, strlen(var->data.name)) == 0)
+                {
+                    id = i;
+                    match = true;
+                }
+            }
+
+            if (!match)
+            {
+                INSERT_ERROR_NODE(err_alloc, "function missing declared");
+                err_alloc->need_call = true;
+                return NULL;
+            }
+
+            var->data.id_fun = id;
         }
-
-            // MatchFuncNamesTable(func_it, var->data.name, &id);
-            // var->data.id_fun = id;
-            // }
-        // else
-        // {
-        //     // MatchNamesTable(func_it, var->data.name, &id);
-        //     // var->data.id_var = id;
-        // }
-
-        // var->left = GetArgument(tkns, funcs, err_alloc);
+        else
+        {
+            MatchNamesTable(&((*funcs)[index_func]), var->data.name, &id);
+            var->data.id_var = id;
+        }
 
         return var;
     }
@@ -832,7 +880,8 @@ Node* GetNumber(Tokens* tkns, err_allocator* err_alloc)
     }
     else
     {
-        ERROR_INSERT("expected number");
+        INSERT_ERROR_NODE(err_alloc, "expected number");
+        err_alloc->need_call = true;
         return NULL;
     }
 

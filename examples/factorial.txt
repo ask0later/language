@@ -1,5 +1,5 @@
 handing over to you |..-. .- -.-. -| (|-.|)
-{
+
     reseption if (|-.| match |-----|)
     {
         out |.----|;
@@ -11,7 +11,8 @@ handing over to you |..-. .- -.-. -| (|-.|)
     };
 
     out |-.| * |..-. .- -.-. -| (|-.| - |.----|) ;
-};
+}
+
 
 handing over to you |-- .- .. -. | ()
 {
@@ -20,4 +21,4 @@ handing over to you |-- .- .. -. | ()
     |..-.| encoding matches |..-. .- -.-. -| (|-.|) ;
 
     get the message (|..-.|) ;
-};
+}

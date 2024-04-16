@@ -1,5 +1,28 @@
 #include "dump.h"
-#include "print.h" 
+#include "print_tree.h" 
+#include <cstddef>
+#include <cstdio>
+
+
+void DumpErrorLocation(Tokens* tkns, Text* buf, const char file[])
+{
+    size_t error_position = tkns->tokens[tkns->position]->text_pos;
+
+    char* temp_buffer = (char*) calloc(buf->size_buffer + INSCRIPTION_NUM, sizeof(char));
+
+    memcpy(temp_buffer, buf->str, error_position);
+
+    memcpy(temp_buffer + error_position, "ERROR LOCATION>>>>> ", INSCRIPTION_NUM);
+
+    memcpy(temp_buffer + error_position + INSCRIPTION_NUM, buf->str + error_position, buf->size_buffer - error_position);
+
+    FILE* To = fopen(file, "w");
+    fwrite(temp_buffer, buf->size_buffer + INSCRIPTION_NUM, sizeof(char), To);
+    fclose(To);
+
+    free(temp_buffer);
+    return;    
+}
 
 void DumpTokens(Tokens* tkns)
 {
@@ -36,23 +59,3 @@ void DumpToken(Node* current)
     }
 }
 
-// void DumpNamesTables(FunctionShell* func_shell)
-// {
-//     for (size_t i_vars = 0; i_vars < func_shell->size; i_vars++)
-//     {
-//         DumpNamesTable(func_shell->funcs + i_vars);
-//         printf("\n");
-//     }
-//     for (size_t i_func = 0; i_func < func_shell->size; i_func++)
-//     {
-//         printf("function[%lu] = %s; type = %d; id = %lu\n", i_func, func_shell->table_funcs[i_func].name, func_shell->table_funcs[i_func].type, func_shell->table_funcs[i_func].id);
-//     }
-// }
-
-void DumpNamesTable(Function* func)
-{
-    for (size_t i = 0; i < func->num_names; i++)
-    {
-        printf("name[%lu] = %s; type = %d; id = %lu\n", i, func->vars[i].name, func->vars[i].type, func->vars[i].id);
-    }
-}
