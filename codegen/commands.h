@@ -10,7 +10,7 @@ OP(FUN_SQRT, "sqrt", "sqrt")
 OP(FUN_LN, "ln", "ln")
 OP(DEFINE, "handing over to you", "")
 OP(RET, "out", "return")
-OP(OP_ASSIGN, "encoding matches", "=")
+OP(OP_ASSIGN, "encoding matches", "= ") // exectly "= " (with space) so there is no space matches
 OP(OP_LOOP, "reseption while", "while")
 OP(OP_CONDITION, "reseption if", "if")
 OP(INPUT, "give a signal", "input")

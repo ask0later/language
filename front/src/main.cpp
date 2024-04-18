@@ -60,7 +60,6 @@ int main(const int argc, const char* argv[])
         return 1;
     }
 
-
     Function* funcs = NULL;
     CtorFunctions(&funcs, &err_alloc);
     size_t index_func = 0;

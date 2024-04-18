@@ -60,17 +60,16 @@ void PrintObject(Node* node, FILE* To)
     else if (node->type == VARIABLE)
     {
         fprintf(To, "var_%lu", node->data.id_var);
-        //fprintf(To, "%s", vars[node->data.id_var].name);
     }
     else if (node->type == FUNCTION)
     {
         fprintf(To, "func_%lu", node->data.id_fun);
-        //fprintf(To, "%s", funcs[node->data.id_fun].name);
     }
 }
 
 void PrintOperator(Operators value_Operators, FILE* To)
 {
+    printf("%d and %s\n", value_Operators, operators[value_Operators].name);
     fprintf(To, " %s ", operators[value_Operators].name);
     return;
 }

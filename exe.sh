@@ -1,9 +1,8 @@
-cd ..
 cd Processor/
 cd asm
 make
-./asm ../../language/examples/$1.asm ../../language/binary.bin
+./asm ../../examples/$1.asm ../../binary.bin
 cd ..
 cd spu
 make
-./spu ../../language/binary.bin
+./spu ../../binary.bin

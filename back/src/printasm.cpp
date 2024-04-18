@@ -153,7 +153,7 @@ void PrintArgFuncDef(Node* node, FILE* To)
 
 void PrintArgFuncAnnoun(Node* node, FILE* To)
 {
-    if (!node) {return;}
+    if (!node) return;
 
     bool is_comma = false;
 
@@ -175,6 +175,7 @@ void PrintArgFuncAnnoun(Node* node, FILE* To)
 void PrintVariable(Node* node, FILE* To)
 {
     if (!node) return;
+    
     fprintf(To, "[%lu]", node->data.id_var);
 
     return;
@@ -196,7 +197,7 @@ void PrintBoolExpression(Node* node, FILE* To)
 
 void PrintExpression(Node* node, FILE* To)
 {
-    if (!node) {return;}
+    if (!node) return;
 
     if (node->type == OPERATOR)
     {

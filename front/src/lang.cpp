@@ -295,8 +295,7 @@ int TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_name)
     return 0;
 }
 
-
-int MatchNamesTable(Function* func, char* name_var, size_t* id_var)
+int AAAAAAAAA(Function* func, char* name_var, size_t* id_var)
 {
     bool match = false;
 
@@ -327,6 +326,53 @@ int MatchNamesTable(Function* func, char* name_var, size_t* id_var)
     return 0;
 }
 
+int MatchNamesTable(Function** func, size_t index_func, char* name_var, size_t* id_var)
+{
+    bool match = false;
+
+    Function* current = &((*func)[index_func]);
+
+    // ((*func)[index_func]).
+
+    for (size_t i = 0; i < current->num_names; i++)
+    {
+        if (strncmp(name_var, current->vars[i].name, current->vars[i].name_size) == 0)
+        {
+            match = true;
+            (*id_var) = current->vars[i].id;
+            return 0;
+        }
+    }
+
+    if (match == false)
+    {
+        size_t size_name = strlen(name_var);
+
+        (*id_var) = current->num_names + GetFunctionOffset(func, index_func);
+
+        current->vars[current->num_names].id = (*id_var);
+        current->vars[current->num_names].type = VARIABLE;
+        current->vars[current->num_names].name_size = size_name;
+
+        memcpy(current->vars[current->num_names].name, name_var, size_name);
+        (current->num_names)++;
+    }
+
+    return 0;
+}
+
+
+size_t GetFunctionOffset(Function** funcs, size_t index_func)
+{
+    size_t offset = 0;
+
+    for (size_t i = 0; i < index_func; i++)
+    {
+        offset += (*funcs)[i].num_names;
+    }
+
+    return offset;
+}
 
 
 
@@ -392,12 +438,6 @@ Node* GetFunction(Tokens* tkns, Function** funcs, size_t index_func, err_allocat
     }
 
     value_1->right = GetOperators(tkns, funcs, index_func, err_alloc);
-
-    // if (err_alloc->need_call == true)
-    // {
-    //     INSERT_ERROR_NODE(err_alloc, "invalid executing GetOperators");
-    //     return NULL;
-    // }    
 
     if (tkns->tokens[tkns->position]->data.id_op == R_CURLY_BRACKET)
     {
@@ -860,7 +900,7 @@ Node* GetVariable(Tokens* tkns, Function** funcs, size_t index_func, err_allocat
         }
         else
         {
-            MatchNamesTable(&((*funcs)[index_func]), var->data.name, &id);
+            MatchNamesTable(funcs, index_func, var->data.name, &id);
             var->data.id_var = id;
         }
 

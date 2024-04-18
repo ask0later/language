@@ -150,9 +150,8 @@ int ParseOperator(Tokens* tkns, Text* buf);
 bool FindSymbol(char* source, const MorseAlpha* morse_symbol, const size_t num_symbols, MorseAlhabet* id);
 int ReadMorseCode(MorseAlhabet* id_value, size_t* i_vars, Text* buf);
 
-int MatchNamesTable(Function* func, char* name_var, size_t* id_var);
-int MatchFuncNamesTable(Function* funcs, char* name_var, size_t* id_fun);
-
+int MatchNamesTable(Function** func, size_t index_func, char* name_var, size_t* id_var);
+int AAAAAAAAA(Function* func, char* name_var, size_t* id_var);
 
 
 Node* GetGrammar(Tokens* tkns, Function** funcs, size_t* index_func, err_allocator* err_alloc);
@@ -179,6 +178,6 @@ Node*    GetReturn(Tokens* tkns, Function** funcs, size_t index_func, err_alloca
 
 
 int TranslateMorseCode(char* name_var, MorseAlhabet* var, size_t* size_name);
-
+size_t GetFunctionOffset(Function** funcs, size_t index_func);
 
 #endif
